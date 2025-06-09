@@ -52,7 +52,7 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/gopi-c-k/GopzCollab.git
+git clone https://github.com/gopi-c-k/gopzCollab.git
 cd GopzCollab
 ````
 
@@ -176,9 +176,3 @@ Built with passion by [**Gopi C K**](https://github.com/gopi-c-k)
 
 MIT License – Open for contributions and collaboration!
 
-```
-
----
-
-Let me know if you'd like this README exported as a file, or customized with badges, logos, live demo links, or Firebase config setup screenshots.
-```
