@@ -167,7 +167,7 @@ req.user = decoded;
 ---
 
 ## 🙋‍♂️ Creator
-
+Built with passion by[*Gopika A*](https://github.com/Gopikakavi)
 Built with passion by [**Gopi C K**](https://github.com/gopi-c-k)
 
 ---
