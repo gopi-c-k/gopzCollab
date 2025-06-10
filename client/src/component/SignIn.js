@@ -158,7 +158,7 @@ function SignIn() {
         </div>
 
         {/* Right Panel */}
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-500 to-blue-300 text-white flex-col justify-center items-center p-10">
+        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-800 to-blue-500 text-white flex-col justify-center items-center p-10">
           <h2 className="text-3xl font-bold mb-4">Welcome Back!</h2>
           <p className="mb-6 text-center max-w-md">
             Sign in to access your dashboard and explore exciting features.
