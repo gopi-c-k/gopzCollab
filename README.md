@@ -2,7 +2,7 @@
 
 GopzCollab is a modern real-time collaboration platform built for teams and individuals to communicate, share content, and work seamlessly — globally and instantly.
 
-> ✨ Created by [Gopi C K](https://github.com/gopi-c-k)
+> ✨ Created by [Gopi C K](https://github.com/gopi-c-k) and [**Gopika A**](https://github.com/Gopikakavi)
 
 ---
 
@@ -167,8 +167,7 @@ req.user = decoded;
 ---
 
 ## 🙋‍♂️ Creator
-Built with passion by[*Gopika A*](https://github.com/Gopikakavi)
-Built with passion by [*Gopika A*](https://github.com/Gopikakavi) and [**Gopi C K**](https://github.com/gopi-c-k)
+Built with passion by [**Gopika A**](https://github.com/Gopikakavi) and [**Gopi C K**](https://github.com/gopi-c-k)
 ---
 
 ## 🏁 License
