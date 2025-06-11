@@ -5,6 +5,7 @@ const admin = require('./../firebase');
 const verifyToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.log("No token provided");
         return res.status(401).json({ error: "Unauthorized: No token provided" });
     }
 
@@ -22,7 +23,7 @@ const verifyToken = async (req, res, next) => {
         next();
     } catch (error) {
         console.log(error);
-        return res.status(403).json({ error: "Unauthorized: Invalid token Gopi" });
+        return res.status(403).json({ error: "Unauthorized: Invalid token" });
     }
 };
 

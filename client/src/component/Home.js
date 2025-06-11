@@ -1,5 +1,5 @@
 import React, { use, useEffect, useState } from 'react';
-import { Bell, UserPlus } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 //import logo from '../assets/logo.png';
 
@@ -12,7 +12,7 @@ const Home = () => {
     const fetchUserData = async () => {
       try {
         // Fetch user data from the server
-        const response = await axiosInstance('/user/fetch'); // Adjust the endpoint as needed
+        const response = await axiosInstance('/user/fetch');
         const data = response.data;
         setUserName(data.name);
         setProfilePic(data.profilePic);
@@ -23,7 +23,7 @@ const Home = () => {
       }
     }
     fetchUserData();
-    // This effect can be used to fetch user data or perform any side effects
+    console.log("User data fetch is calling");
   }, []);
   const squareBoxStyle =
     "w-40 h-40 flex items-center justify-center bg-white rounded-lg shadow-md text-lg font-medium hover:shadow-lg transition";
@@ -39,8 +39,13 @@ const Home = () => {
             <Bell />
           </button>
           <button className="bg-blue-600 text-white p-2 rounded-full">
-            <UserPlus />
+            <img
+              src={profilePic || '/assets/Images/defaultProfilePic.png'}
+              alt="Profile"
+              className="w-8 h-8 rounded-full"
+            />
           </button>
+
         </div>
       </div>
 

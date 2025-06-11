@@ -11,7 +11,13 @@ connectDB();
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:3000", // frontend origin
+    origin: [
+      "http://localhost:3002",
+      "http://localhost:3000",
+      "http://localhost:3004",
+      "http://localhost:3003",
+      "http://localhost:3001"
+    ],
     credentials: true,
   })
 );

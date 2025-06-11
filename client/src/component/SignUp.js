@@ -10,6 +10,7 @@ import {
     updateProfile
 } from "firebase/auth";
 import axiosInstance from "../api/axiosInstance";
+import storeFirebaseToken from "../api/storeToken";
 
 function SignUp({ prefersDarkMode }) {
     const navigate = useNavigate();
@@ -64,8 +65,10 @@ function SignUp({ prefersDarkMode }) {
             const token = await user.getIdToken();
             setLoggedInUser(user.email);
             const res = await axiosInstance.post("/user/create");
-            if (res.status === 200 || res.status === 201)
+            if (res.status === 200 || res.status === 201) {
+                await storeFirebaseToken();
                 navigate("/home");
+            }
             console.log("Token:", token);
         } catch (error) {
             setSnackbarMessage(error.message);

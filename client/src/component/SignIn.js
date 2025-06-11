@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import storeFirebaseToken from "../api/storeToken";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 import axiosInstance from "../api/axiosInstance";
@@ -11,6 +11,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
+import axios from "axios";
 
 
 function SignIn() {
@@ -47,8 +48,11 @@ function SignIn() {
         const token = await user.getIdToken();
         setLoggedInUser(user.email);
         const res = await axiosInstance.post("/user/create");
-        if (res.status === 200 || res.status === 201)
+        if (res.status === 200 || res.status === 201) {
+          await storeFirebaseToken();
           navigate("/home");
+        }
+
       }
 
     } catch (error) {
@@ -62,9 +66,11 @@ function SignIn() {
       const user = result.user;
       const token = await user.getIdToken();
       setLoggedInUser(user.email);
-      const res = await axiosInstance.post("/user/create");
-      if (res.status === 200 || res.status === 201)
+      const res = await axios.post("/user/create");
+      if (res.status === 200 || res.status === 201) {
+        await storeFirebaseToken();
         navigate("/home");
+      }
     } catch (error) {
       setErrorMessage(error.message);
     }
