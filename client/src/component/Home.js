@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { Bell, UserPlus } from 'lucide-react';
+import axiosInstance from '../api/axiosInstance';
 //import logo from '../assets/logo.png';
 
 const Home = () => {
-  const username = "John"; // Replace with dynamic user value
-  const createdRooms = ['Room A', 'Room B', 'Room C', 'Room D'];
-  const joinedRooms = ['Marketing Team', 'Study Buddies', 'Design Squad', 'Dev Team'];
-
+  const [userName, setUserName] = useState(" ");
+  const [profilePic, setProfilePic] = useState('');
+  const [createdRooms, setCreatedRooms] = useState([]);
+  const [joinedRooms, setJoinedRooms] = useState([]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Fetch user data from the server
+        const response = await axiosInstance('/user/fetch'); // Adjust the endpoint as needed
+        const data = response.data;
+        setUserName(data.name);
+        setProfilePic(data.profilePic);
+        setCreatedRooms(data.createdRooms.map(room => room.title));
+        setJoinedRooms(data.joinedRooms.map(room => room.title));
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    }
+    fetchUserData();
+    // This effect can be used to fetch user data or perform any side effects
+  }, []);
   const squareBoxStyle =
     "w-40 h-40 flex items-center justify-center bg-white rounded-lg shadow-md text-lg font-medium hover:shadow-lg transition";
 
@@ -14,7 +32,7 @@ const Home = () => {
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <img  src="/assets/Images/Logo.png" alt="Logo" className="h-10" />
+        <img src="/assets/Images/Logo.png" alt="Logo" className="h-10" />
 
         <div className="flex items-center space-x-4">
           <button className="bg-yellow-400 text-white p-2 rounded-full">
@@ -27,8 +45,8 @@ const Home = () => {
       </div>
 
       {/* Welcome */}
-      <div className="text-center mb-10">
-        <h2 className="text-3xl font-bold text-blue-700">Welcome, {username}</h2>
+      <div className="text-left mb-10">
+        <h2 className="text-2xl font-bold text-blue-700">Welcome, {userName}</h2>
       </div>
 
       {/* Created Rooms - One Line */}
