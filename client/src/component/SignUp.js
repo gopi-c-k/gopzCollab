@@ -7,8 +7,9 @@ import {
     sendEmailVerification,
     signInWithPopup,
     createUserWithEmailAndPassword,
-    updateProfile 
+    updateProfile
 } from "firebase/auth";
+import axiosInstance from "../api/axiosInstance";
 
 function SignUp({ prefersDarkMode }) {
     const navigate = useNavigate();
@@ -18,7 +19,7 @@ function SignUp({ prefersDarkMode }) {
     const [loggedInUser, setLoggedInUser] = useState(null);
     const [snackbarMessage, setSnackbarMessage] = useState("");
     const [snackbarType, setSnackbarType] = useState("success");
-    const [name,setName] = useState("");
+    const [name, setName] = useState("");
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -52,7 +53,7 @@ function SignUp({ prefersDarkMode }) {
         });
         await sendEmailVerification(userCredential.user);
         setSnackbarType("success");
-        setSnackbarMessage("Signup successful! ✅ Verification email sent.");
+        setSnackbarMessage("Signup successful! Verification email sent.");
         navigate('/signin');
     };
 
@@ -62,7 +63,9 @@ function SignUp({ prefersDarkMode }) {
             const user = result.user;
             const token = await user.getIdToken();
             setLoggedInUser(user.email);
-            navigate('/home')
+            const res = await axiosInstance.post("/user/create");
+            if (res.status === 200 || res.status === 201)
+                navigate("/home");
             console.log("Token:", token);
         } catch (error) {
             setSnackbarMessage(error.message);

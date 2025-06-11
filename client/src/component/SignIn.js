@@ -46,10 +46,9 @@ function SignIn() {
       } else {
         const token = await user.getIdToken();
         setLoggedInUser(user.email);
-        const response = await axiosInstance.get("/protected");
-        console.log("Backend Response:", response.data);
-        navigate("/home");
-        console.log("Token:", token);
+        const res = await axiosInstance.post("/user/create");
+        if (res.status === 200 || res.status === 201)
+          navigate("/home");
       }
 
     } catch (error) {
@@ -63,10 +62,9 @@ function SignIn() {
       const user = result.user;
       const token = await user.getIdToken();
       setLoggedInUser(user.email);
-      const response = await axiosInstance.get("/protected");
-      console.log("Backend Response:", response.data);
-      navigate('/home')
-      console.log("Token:", token);
+      const res = await axiosInstance.post("/user/create");
+      if (res.status === 200 || res.status === 201)
+        navigate("/home");
     } catch (error) {
       setErrorMessage(error.message);
     }

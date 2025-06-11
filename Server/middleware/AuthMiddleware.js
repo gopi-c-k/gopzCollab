@@ -12,7 +12,13 @@ const verifyToken = async (req, res, next) => {
 
     try {
         const decodedToken = await admin.auth().verifyIdToken(token);
-        req.user = decodedToken;
+        req.user = {
+            uid: decodedToken.uid,
+            email: decodedToken.email,
+            name: decodedToken.name || "",
+            profilePic: decodedToken.picture || "",
+            provider: decodedToken.firebase?.sign_in_provider || "unknown"
+        };
         next();
     } catch (error) {
         console.log(error);

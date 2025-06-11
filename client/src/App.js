@@ -9,7 +9,7 @@ function App() {
     <Router>
       <Routes>
         {/* <Route path="/signin" element={<SignIn info={{ theme, prefersDarkMode }} />} /> */}
-         <Route path="/signin" element={<SignIn/>} />
+        <Route path="/signin" element={<SignIn/>} />
         <Route path="/signup" element={<SignUp/>} />
         <Route path="/home" element={<Home/>} />
       </Routes>
