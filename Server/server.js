@@ -4,7 +4,7 @@ const connectDB = require('./config/db');
 const verifyToken = require("./middleware/AuthMiddleware");
 const cors = require('cors');
 const userRoute = require('./routes/userRoute.js');
-const documentRoute = require('./routes/documentRoute.js'); // <-- Add this line
+const documentRoute = require('./routes/documentRoute.js');
 
 dotenv.config();
 connectDB();
@@ -27,7 +27,7 @@ app.use(express.json());
 
 // Routes
 app.use("/user", userRoute);
-app.use("/room", documentRoute); // <-- Add this line
+app.use("/room", documentRoute); 
 
 app.get('/', (req, res) => {
   res.send('GopzCollab Backend is Running 🚀');

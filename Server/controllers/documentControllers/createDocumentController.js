@@ -1,26 +1,27 @@
 const Document = require('../../models/document');
+const User = require('../../models/user');
 
 const createDocument = async (req, res) => {
-    console.log("Creating a new document...");
     try {
         const { title, type } = req.body;
-        const ownerId = req.user && req.user._id; // Assumes authentication middleware sets req.user
-
-        // Validate input
         if (!title || !type) {
             return res.status(400).json({ message: "Title and type are required." });
         }
 
-        // Validate type
         if (!['text', 'code', 'canvas'].includes(type)) {
             return res.status(400).json({ message: "Invalid document type." });
+        }
+
+        const user = await User.findOne({ email: req.user.email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
         }
 
         // Create new document
         const newDocument = await Document.create({
             title,
             type,
-            owner: ownerId,
+            owner: user._id,
             collaborators: [],
             content: '',
             canvasData: {},

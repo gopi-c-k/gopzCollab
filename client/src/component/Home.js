@@ -58,24 +58,33 @@ const Home = () => {
     }
     try {
       setLoading(true);
+
       const response = await axiosInstance.post('/room/create', {
         title: roomTitle,
         type: roomType
       });
+
       if (response.status === 200 || response.status === 201) {
         alert("Room created successfully!");
         setShowModal(false);
         setCreateRoomModal(false);
         setRoomTitle('');
         setRoomType('text');
-        setLoading(false);
-        setCreatedRooms([...createdRooms, roomTitle]);
+
+        // Add the new room object instead of just the title
+        setCreatedRooms(prev => [...prev, response.data]);
+
+      } else {
+        console.error("Unexpected response status:", response.status);
+        alert("Failed to create room. Try again.");
       }
     } catch (error) {
-      console.error('Error creating room:', error);
+      console.error("Error creating room:", error);
+      alert("Something went wrong!");
+    } finally {
       setLoading(false);
-      alert("Failed to create room. Please try again.");
     }
+
   };
   const handleJoinRoom = async () => {
     // Logic to join a room 
@@ -296,11 +305,11 @@ const Home = () => {
             <h2 className="text-xl font-semibold mb-4 text-blue-600">Room Details</h2>
             <p>Room Title:</p>
             <p className="text-sm text-gray-600 mb-4">Room 1</p>
-            <p>Room Type:</p> 
+            <p>Room Type:</p>
             <p className="text-sm text-gray-600 mb-4">Text</p>
             <p>Ownwer:</p>
             <p className="text-sm text-gray-600 mb-4">John Doe</p>
-            <p>Collaborators:</p> 
+            <p>Collaborators:</p>
             <p className="text-sm text-gray-600 mb-4">Jane Smith, Alice Johnson</p>
             <p>Created At:</p>
             <p className="text-sm text-gray-600 mb-4">2023-10-01 12:00 PM</p>
