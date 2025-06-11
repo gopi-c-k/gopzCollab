@@ -69,7 +69,6 @@ function SignUp({ prefersDarkMode }) {
                 await storeFirebaseToken();
                 navigate("/home");
             }
-            console.log("Token:", token);
         } catch (error) {
             setSnackbarMessage(error.message);
             setSnackbarType("error");

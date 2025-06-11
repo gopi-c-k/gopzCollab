@@ -66,7 +66,7 @@ function SignIn() {
       const user = result.user;
       const token = await user.getIdToken();
       setLoggedInUser(user.email);
-      const res = await axios.post("/user/create");
+      const res = await axiosInstance.post("/user/create");
       if (res.status === 200 || res.status === 201) {
         await storeFirebaseToken();
         navigate("/home");

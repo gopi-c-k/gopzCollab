@@ -6,7 +6,16 @@ import axiosInstance from '../api/axiosInstance';
 const Home = () => {
   const [userName, setUserName] = useState(" ");
   const [profilePic, setProfilePic] = useState('');
-  const [createdRooms, setCreatedRooms] = useState([]);
+  const [createdRooms, setCreatedRooms] = useState([{
+    title: 'Room 1',
+    type: 'text'
+  }, {
+    title: 'Room 2',
+    type: 'code'
+  }, {
+    title: 'Room 3',
+    type: 'canvas'
+  }]);
   const [joinedRooms, setJoinedRooms] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [createRoomModal, setCreateRoomModal] = useState(false);
@@ -25,7 +34,7 @@ const Home = () => {
         const data = response.data;
         setUserName(data.name);
         setProfilePic(data.profilePic);
-        setCreatedRooms(data.createdRooms.map(room => room.title));
+        //setCreatedRooms(data.createdRooms.map(room => room.title));
         setJoinedRooms(data.joinedRooms.map(room => room.title));
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -126,10 +135,20 @@ const Home = () => {
         <h2 className="text-xl font-semibold mb-4">Created Rooms</h2>
         <div className="flex flex-wrap gap-6">
           {createdRooms.map((room, index) => (
-            <div key={index} className={squareBoxStyle}>
-              {room}
+            <div key={index} 
+            onClick={() => {}}
+            className="w-40 h-40 bg-white rounded-lg shadow-md hover:shadow-lg transition flex flex-col cusrsor-pointer justify-between overflow-hidden">
+              <img
+                src={`/assets/Images/${room.type}Icon.png`}
+                alt="Room Icon"
+                className="py-2 px-2 w-full h-28 object-cover rounded-t-lg"
+              />
+              <div className="text-center py-2 px-1 text-sm font-medium text-gray-800 border-t">
+                {room.title}
+              </div>
             </div>
           ))}
+
           {/* Create Room */}
           <button onClick={() => { setShowModal(true); setShowMainModal(true); }} className="w-40 h-40 bg-gradient-to-r from-blue-100 to-blue-300 flex flex-col items-center justify-center rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform">
             <div className="text-4xl text-blue-700 mb-1">+</div>
@@ -144,7 +163,9 @@ const Home = () => {
         <div className="flex flex-wrap gap-6">
           {joinedRooms.map((room, index) => (
             <div key={index} className={squareBoxStyle}>
-              {room}
+              <img
+                src="/assets/Images/roomIcon.png" ></img>
+              {room.title}
             </div>
           ))}
         </div>
