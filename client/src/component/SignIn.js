@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import axiosInstance from "../api/axiosInstance";
 import { auth, googleProvider } from "../firebase";
 import {
   signInWithEmailAndPassword,
@@ -19,30 +20,6 @@ function SignIn() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loggedInUser, setLoggedInUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-
-  useEffect(() => {
-    const autoLogin = async () => {
-      try {
-        await axios.post("http://localhost:5000/login-refresh", {}, { withCredentials: true });
-        fetchProtectedData();
-      } catch {
-        console.log("Not logged in");
-      }
-    };
-
-    autoLogin();
-  }, []);
-
-  const fetchProtectedData = async () => {
-    try {
-      const response = await axios.get("http://localhost:5000/protected", { withCredentials: true });
-      if (response.status === 200) {
-        navigate("/home");
-      }
-    } catch (error) {
-      console.error("Failed to fetch protected data:", error.response?.data?.message || error.message);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,6 +46,8 @@ function SignIn() {
       } else {
         const token = await user.getIdToken();
         setLoggedInUser(user.email);
+        const response = await axiosInstance.get("/protected");
+        console.log("Backend Response:", response.data);
         navigate("/home");
         console.log("Token:", token);
       }
@@ -84,6 +63,8 @@ function SignIn() {
       const user = result.user;
       const token = await user.getIdToken();
       setLoggedInUser(user.email);
+      const response = await axiosInstance.get("/protected");
+      console.log("Backend Response:", response.data);
       navigate('/home')
       console.log("Token:", token);
     } catch (error) {
