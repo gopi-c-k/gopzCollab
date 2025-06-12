@@ -9,7 +9,7 @@ const verifyDocumentOwnership = require('../middleware/DocumentMiddleware');
 
 // Route to create a new document (room)
 router.post('/create', AuthMiddleware, createDocument);
-router.get('/details/:documentId', AuthMiddleware, getRoomDetails); // <-- Add this line
+router.get('/details/:documentId', AuthMiddleware, verifyDocumentOwnership(['owner','collaborator']),getRoomDetails); 
 router.delete('/delete/:documentId', AuthMiddleware, verifyDocumentOwnership(['owner', 'collaborator']), deleteDocument);
 
 

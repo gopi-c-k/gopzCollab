@@ -198,10 +198,10 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <img src="/assets/Images/Logo.png" alt="Logo" className="h-10" />
+      <div className="flex justify-between items-center mb-6 border-b-2 border-blue-500">
+        <img src="/assets/Images/Logo.png" alt="Logo" className="h-10 mb-2" />
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 mb-2">
           <button className="bg-yellow-400 text-white p-2 rounded-full">
             <Bell />
           </button>
@@ -209,7 +209,7 @@ const Home = () => {
             <img
               src={profilePic || '/assets/Images/defaultProfilePic.png'}
               alt="Profile"
-              className="w-8 h-8 rounded-full"
+              className="w-6 h-6 rounded-full"
             />
           </button>
 
