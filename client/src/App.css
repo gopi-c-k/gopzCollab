@@ -36,3 +36,22 @@
     transform: rotate(360deg);
   }
 }
+
+.ProseMirror {
+  outline: none;
+  min-height: 200px;
+  white-space: pre-wrap;
+}
+
+button {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background-color: #f0f0f0;
+}
