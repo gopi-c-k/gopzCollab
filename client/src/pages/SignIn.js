@@ -11,7 +11,6 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import axios from "axios";
 
 
 function SignIn() {

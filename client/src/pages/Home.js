@@ -1,21 +1,14 @@
 import React, { use, useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import { Bell } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
+import Notification from '../components/Notification';
 //import logo from '../assets/logo.png';
 
 const Home = () => {
   const [userName, setUserName] = useState(" ");
   const [profilePic, setProfilePic] = useState('');
-  const [createdRooms, setCreatedRooms] = useState([{
-    title: 'Room 1',
-    type: 'text'
-  }, {
-    title: 'Room 2',
-    type: 'code'
-  }, {
-    title: 'Room 3',
-    type: 'canvas'
-  }]);
+  const [createdRooms, setCreatedRooms] = useState([]);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
   const [joinedRooms, setJoinedRooms] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -26,7 +19,23 @@ const Home = () => {
   const [roomType, setRoomType] = useState('text');
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [roomLoading, setRoomLoading] = useState(false);
+
+  // For room details
+  const [roomDetailsLoading, setRoomDetailsLoading] = useState(false);
+  const [roomDetails, setRoomDetails] = useState(null);
+
+  // For deleting rooms
+  const [deleteRoomLoading, setDeleteRoomLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState(null);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
+
+  // For notifications
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarType, setSnackbarType] = useState('info');
+  const [showSnackbar, setShowSnackbar] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -36,24 +45,30 @@ const Home = () => {
         const data = response.data;
         setUserName(data.name);
         setProfilePic(data.profilePic);
-        //setCreatedRooms(data.createdRooms.map(room => room.title));
-        setJoinedRooms(data.joinedRooms.map(room => room.title));
+        setCreatedRooms(data.createdRooms);
+        setJoinedRooms(data.joinedRooms);
       } catch (error) {
+        navigate('/signin');
         console.error('Error fetching user data:', error);
       }
     }
     fetchUserData();
-    console.log("User data fetch is calling");
   }, []);
 
   const handleCreateRoom = async () => {
     // Logic to create a room 
     if (!roomTitle) {
-      alert("Please enter a room title.");
+      setSnackbarMessage('Please enter a room title.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 3000);
       return;
     }
     if (!roomType) {
-      alert("Please select a room type.");
+      setSnackbarMessage('Please select a room type.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 3000);
       return;
     }
     try {
@@ -65,22 +80,31 @@ const Home = () => {
       });
 
       if (response.status === 200 || response.status === 201) {
-        alert("Room created successfully!");
+        setSnackbarMessage('Room created successfully!');
+        setSnackbarType('success');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
         setShowModal(false);
         setCreateRoomModal(false);
         setRoomTitle('');
         setRoomType('text');
 
         // Add the new room object instead of just the title
-        setCreatedRooms(prev => [...prev, response.data]);
+        setCreatedRooms(prev => [...prev, response.data.document]);
 
       } else {
         console.error("Unexpected response status:", response.status);
-        alert("Failed to create room. Try again.");
+        setSnackbarMessage('Failed to create room. Please try again.');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
       }
     } catch (error) {
       console.error("Error creating room:", error);
-      alert("Something went wrong!");
+      setSnackbarMessage('Failed to create room. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 3000);
     } finally {
       setLoading(false);
     }
@@ -112,10 +136,64 @@ const Home = () => {
     }
   }
   const handleRoomClick = async (room) => {
-    setRoomLoading(true);
-    setShowRoomDetails(true);
-    console.log("Room clicked:", room);
+
   };
+  const handleDetailsClick = async (room) => {
+    setShowRoomDetails(true);
+    setRoomDetailsLoading(true);
+    try {
+      const response = await axiosInstance.get(`/room/details/${room._id}`);
+      if (response.status === 200) {
+        console.log(response.data);
+        setRoomDetails(response.data);
+        setRoomDetailsLoading(false);
+      } else {
+        console.error("Failed to fetch room details:", response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching room details:', error);
+    }
+  };
+
+  const handleDeleteRoom = async (room) => {
+    setDeleteRoomLoading(true);
+    try {
+      const roomId = room._id;
+      const response = await axiosInstance.delete(`/room/delete/${roomId}`);
+      if (response.status === 200) {
+        if (room.owner) {
+          setSnackbarMessage('Room deleted successfully!');
+          setSnackbarType('success');
+          setShowSnackbar(true);
+          setTimeout(() => setShowSnackbar(false), 3000);
+          setCreatedRooms(createdRooms.filter(room => room._id !== roomId));
+        } else {
+          setSnackbarMessage('You have left the room successfully!');
+          setSnackbarType('success');
+          setShowSnackbar(true);
+          setTimeout(() => setShowSnackbar(false), 3000);
+          setJoinedRooms(joinedRooms.filter(room => room._id !== roomId));
+        }
+        setShowDeleteModal(false);
+        setRoomToDelete(null);
+      } else {
+        console.error("Failed to delete room:", response.status);
+        setSnackbarMessage('Failed to delete/remove room. Please try again.');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
+        setDeleteRoomLoading(false);
+      }
+    } catch (error) {
+      console.error('Error deleting room:', error);
+      setSnackbarMessage('Failed to delete/remove room. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 3000);
+    } finally {
+      setDeleteRoomLoading(false);
+    }
+  }
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
@@ -147,21 +225,70 @@ const Home = () => {
         <h2 className="text-xl font-semibold mb-4">Created Rooms</h2>
         <div className="flex flex-wrap gap-6">
           {createdRooms.map((room, index) => (
-            <div key={index}
-              onClick={() => { handleRoomClick(room) }}
-              className="w-40 h-40 bg-white rounded-lg shadow-md hover:shadow-lg transition flex flex-col cusrsor-pointer hover:scale-105 justify-between overflow-hidden">
-              <img
-                src={`/assets/Images/${room.type}Icon.png`}
-                alt="Room Icon"
-                className="py-2 px-2 w-full h-28 object-cover rounded-t-lg"
-              />
-              <div className="text-center py-2 px-1 text-sm font-medium text-gray-800 border-t">
-                {room.title}
+            <div
+              key={index}
+              className="relative w-40 h-40 bg-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col justify-between overflow-hidden"
+              onClick={() => handleRoomClick(room)}
+            >
+              {/*Delete & Details icon */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteModal(true);
+                  setRoomToDelete(room);
+                }}
+                className="absolute top-2 right-10 z-10 p-1 rounded-full bg-red-100 hover:bg-red-200"
+                title="Delete Room"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDetailsClick(room);
+                }}
+                className="absolute top-2 right-2 z-10 p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+                title="View Details"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                </svg>
+              </button>
+
+              <div className="flex flex-col items-center justify-center text-center px-2 pt-6 pb-2 mt-2">
+                <div className="text-gray-800 font-semibold text-base">{room.title}</div>
+                <div className="text-gray-500 text-xs mt-1">Tap to explore</div>
+              </div>
+
+              <div className="w-full h-16 overflow-hidden border-t">
+                <img
+                  src={`/assets/Images/${room.type}Icon.png`}
+                  alt="Room Icon"
+                  className="w-full h-full object-contain p-2"
+                />
               </div>
             </div>
           ))}
-
-          {/* Create Room */}
           <button onClick={() => { setShowModal(true); setShowMainModal(true); }} className="w-40 h-40 bg-gradient-to-r from-blue-100 to-blue-300 flex flex-col items-center justify-center rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform">
             <div className="text-4xl text-blue-700 mb-1">+</div>
             <div className="text-blue-800 font-semibold text-center text-sm">Create/Join Room</div>
@@ -169,21 +296,46 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Joined Rooms - One Line */}
       <div className='bg-white p-4 rounded-lg shadow-md'>
         <h2 className="text-xl font-semibold mb-4">Joined Rooms</h2>
         <div className="flex flex-wrap gap-6">
           {joinedRooms.length ? joinedRooms.map((room, index) => (
-            <div key={index}
-              onClick={() => { }}
-              className="w-40 h-40 bg-white rounded-lg shadow-md hover:shadow-lg transition flex flex-col cusrsor-pointer justify-between overflow-hidden">
-              <img
-                src={`/assets/Images/${room.type}Icon.png`}
-                alt="Room Icon"
-                className="py-2 px-2 w-full h-28 object-cover rounded-t-lg"
-              />
-              <div className="text-center py-2 px-1 text-sm font-medium text-gray-800 border-t">
-                {room.title}
+            <div
+              key={index}
+              className="relative w-40 h-40 bg-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col justify-between overflow-hidden"
+              onClick={() => handleRoomClick(room)}
+            >
+              {/* Details icon */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDetailsClick(room);
+                }}
+                className="absolute top-2 right-2 z-10 p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+                title="View Details"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                </svg>
+              </button>
+
+              <div className="flex flex-col items-center justify-center text-center px-2 pt-6 pb-2">
+                <div className="text-gray-800 font-semibold text-base">{room.title}</div>
+                <div className="text-gray-500 text-xs mt-1">Tap to explore</div>
+              </div>
+
+              <div className="w-full h-16 overflow-hidden border-t">
+                <img
+                  src={`/assets/Images/${room.type}Icon.png`}
+                  alt="Room Icon"
+                  className="w-full h-full object-contain p-2"
+                />
               </div>
             </div>
           )) : (
@@ -299,7 +451,7 @@ const Home = () => {
         </div>
       )
       }
-      {showRoomDetails && (
+      {(showRoomDetails && !roomDetailsLoading) ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
             <h2 className="text-xl font-semibold mb-4 text-blue-600">Room Details</h2>
@@ -323,6 +475,61 @@ const Home = () => {
             </button>
           </div>
         </div>
+      ) : (
+        showRoomDetails && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+          </div>
+        )
+      )}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">Delete Room</h2>
+            <p>Are you sure you want to delete this room?</p>
+            <p className="text-sm text-gray-500 mb-2">
+              Type <strong>{roomToDelete.title}</strong> to confirm.
+            </p>
+
+            <input
+              type="text"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 mt-2"
+              placeholder={`Type "${roomToDelete.title}" to confirm`}
+              value={deleteConfirmationInput}
+              onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+            />
+
+            <div className="flex justify-end mt-4 space-x-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmationInput('');
+                  setRoomToDelete(null);
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteRoom(roomToDelete)}
+                disabled={deleteConfirmationInput !== roomToDelete.title || deleteRoomLoading}
+                className={`px-4 py-2 rounded text-white ${deleteConfirmationInput === roomToDelete.title && !deleteRoomLoading
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-red-300 cursor-not-allowed'
+                  }`}
+              >
+                {deleteRoomLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSnackbar && (
+        <Notification
+          message={snackbarMessage}
+          type={snackbarType}
+        />
       )}
 
     </div >
