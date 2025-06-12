@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Bell } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import Notification from '../components/Notification';
+//const response = await axiosInstance.get(`/room/details/${room._id}`);
 //import logo from '../assets/logo.png';
 
 const Home = () => {
@@ -451,22 +452,30 @@ const Home = () => {
         </div>
       )
       }
-      {(showRoomDetails && !roomDetailsLoading) ? (
+      {(showRoomDetails && !roomDetailsLoading && roomDetails) ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
             <h2 className="text-xl font-semibold mb-4 text-blue-600">Room Details</h2>
             <p>Room Title:</p>
-            <p className="text-sm text-gray-600 mb-4">Room 1</p>
+            <p className="text-sm text-gray-600 mb-4">{roomDetails.title}</p>
             <p>Room Type:</p>
-            <p className="text-sm text-gray-600 mb-4">Text</p>
-            <p>Ownwer:</p>
-            <p className="text-sm text-gray-600 mb-4">John Doe</p>
+            <p className="text-sm text-gray-600 mb-4">{roomDetails.type}</p>
+            <p>Owner:</p>
+            <p className="text-sm text-gray-600 mb-4">{roomDetails.owner}</p>
             <p>Collaborators:</p>
-            <p className="text-sm text-gray-600 mb-4">Jane Smith, Alice Johnson</p>
+            <p className="text-sm text-gray-600 mb-4">
+              {roomDetails.collaborators && roomDetails.collaborators.length
+                ? roomDetails.collaborators.join(', ')
+                : 'None'}
+            </p>
             <p>Created At:</p>
-            <p className="text-sm text-gray-600 mb-4">2023-10-01 12:00 PM</p>
+            <p className="text-sm text-gray-600 mb-4">
+              {roomDetails.createdAt && new Date(roomDetails.createdAt).toLocaleString()}
+            </p>
             <p>Last Updated:</p>
-            <p className="text-sm text-gray-600 mb-4">2023-10-02 03:00 PM</p>
+            <p className="text-sm text-gray-600 mb-4">
+              {roomDetails.updatedAt && new Date(roomDetails.updatedAt).toLocaleString()}
+            </p>
             <button
               className="absolute top-2 right-3 text-gray-600 hover:text-gray-800"
               onClick={() => setShowRoomDetails(false)}
