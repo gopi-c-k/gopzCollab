@@ -25,6 +25,10 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript'
 import Paragraph from '@tiptap/extension-paragraph'
 import { Text as TextExtension } from '@tiptap/extension-text'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import * as Y from 'yjs'
+import { WebsocketProvider } from 'y-websocket'
 import {
   Bold,
   Italic,
@@ -78,7 +82,7 @@ import {
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
 } from 'lucide-react'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect,useMemo } from 'react'
 
 import CodeBlock from '@tiptap/extension-code-block'
 
@@ -89,6 +93,12 @@ const RichTextEditor = () => {
   const [charCount, setCharCount] = useState(0)
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
+  const ydoc = useMemo(() => new Y.Doc(), [])
+const provider = useMemo(
+  () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
+  [ydoc]
+)
+
 
   const themeClasses = isDarkMode
     ? 'bg-gray-900 text-white'
@@ -229,6 +239,18 @@ const RichTextEditor = () => {
         HTMLAttributes: {
           class: "bg-purple-100 text-gray-800 p-1 rounded font-mono text-sm border border-gray-300 dark:border-gray-700"
 
+        },
+      }),
+       // ADD THESE TWO LINES:
+    Collaboration.configure({
+      document: ydoc,
+    }),
+    
+      CollaborationCursor.configure({
+        provider,
+        user: {
+          name: localStorage.getItem('userName') || 'Anonymous',
+          color: localStorage.getItem('userColor') || '#60a5fa',
         },
       }),
     ],
