@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
@@ -17,17 +17,14 @@ function SignUp({ prefersDarkMode }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [loggedInUser, setLoggedInUser] = useState(null);
     const [snackbarMessage, setSnackbarMessage] = useState("");
     const [snackbarType, setSnackbarType] = useState("success");
     const [name, setName] = useState("");
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const passwordPattern =
-            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        const emailPattern =
-            /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*\.\w{2,3}$/;
+        const passwordPattern =/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        const emailPattern =/^\w+([-]?\w+)*@\w+([-]?\w+)*\.\w{2,3}$/;
 
         if (!emailPattern.test(email)) {
             setSnackbarMessage("Enter Correct Email!");
@@ -60,10 +57,7 @@ function SignUp({ prefersDarkMode }) {
 
     const handleGoogleSignIn = async () => {
         try {
-            const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
-            const token = await user.getIdToken();
-            setLoggedInUser(user.email);
+            await signInWithPopup(auth, googleProvider);
             const res = await axiosInstance.post("/user/create");
             if (res.status === 200 || res.status === 201) {
                 await storeFirebaseToken();

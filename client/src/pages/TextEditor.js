@@ -82,7 +82,11 @@ import {
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
 } from 'lucide-react'
+<<<<<<< HEAD
 import { useState, useCallback, useEffect,useMemo } from 'react'
+=======
+import { useState, useCallback } from 'react'
+>>>>>>> 8764217d10c549b636b760de9d0511cef549bc23
 
 import CodeBlock from '@tiptap/extension-code-block'
 
@@ -238,7 +242,6 @@ const provider = useMemo(
       Code.configure({
         HTMLAttributes: {
           class: "bg-purple-100 text-gray-800 p-1 rounded font-mono text-sm border border-gray-300 dark:border-gray-700"
-
         },
       }),
        // ADD THESE TWO LINES:
@@ -343,6 +346,7 @@ const provider = useMemo(
         <div className="flex items-center space-x-3">
           <FileText className="w-8 h-8 text-blue-500" />
           <img
+            alt="Logo"
             src="/assets/Images/Logo.png"
             className='w-44'
           ></img>
