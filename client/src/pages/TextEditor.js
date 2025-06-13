@@ -3,12 +3,19 @@ import StarterKit from '@tiptap/starter-kit'
 import Blockquote from '@tiptap/extension-blockquote'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
+import BulletList from '@tiptap/extension-bullet-list'
+import Document from '@tiptap/extension-document'
+import ListItem from '@tiptap/extension-list-item'
+import htmlDocx from 'html-docx-js/dist/html-docx';
+import html2pdf from 'html2pdf.js';
+import OrderedList from '@tiptap/extension-ordered-list'
 import Link from '@tiptap/extension-link'
 import Code from '@tiptap/extension-code'
 import Image from '@tiptap/extension-image'
 import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import TextStyle from '@tiptap/extension-text-style'
+import Heading from '@tiptap/extension-heading'
 import Color from '@tiptap/extension-color'
 import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
@@ -16,6 +23,8 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript'
+import Paragraph from '@tiptap/extension-paragraph'
+import { Text as TextExtension } from '@tiptap/extension-text'
 import {
   Bold,
   Italic,
@@ -27,7 +36,24 @@ import {
   AlignRight,
   AlignJustify,
   List,
+  X,
   ListOrdered,
+  PlusCircle,
+  PlusSquare,
+  MinusCircle,
+  MinusSquare,
+  Columns2,
+  DivideSquare,
+  ArrowDown,
+  ArrowUp,
+  ArrowLeft,
+  ArrowRight,
+  LayoutList,
+  LayoutGrid,
+  TableProperties,
+  Merge,
+  Split,
+  Wand2,
   Undo,
   Redo,
   Type,
@@ -45,14 +71,14 @@ import {
   Moon,
   Save,
   FileText,
+  FileDown,
+  FileArchive,
   Palette,
   Trash2,
-  Plus,
-  Minus,
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
 } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 import CodeBlock from '@tiptap/extension-code-block'
 
@@ -61,8 +87,8 @@ const RichTextEditor = () => {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
-  const [extensionClasses, setExtensionClasses] = useState('')
-
+  const [tableModalShow, setTableModalShow] = useState(false)
+  const [open, setOpen] = useState(false);
 
   const themeClasses = isDarkMode
     ? 'bg-gray-900 text-white'
@@ -88,10 +114,12 @@ const RichTextEditor = () => {
   const editor = useEditor({
     key: isDarkMode ? 'dark-editor' : 'light-editor',
     extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
+      StarterKit,
+      Document,
+      Paragraph,
+      TextExtension,
+      Heading.configure({
+        levels: [1, 2, 3],
       }),
       CodeBlock.configure({
         languageClassPrefix: 'language-',
@@ -102,7 +130,17 @@ const RichTextEditor = () => {
             : 'bg-gray-100 text-gray-800 border-gray-200'} p-4 rounded-md overflow-x-auto font-mono text-sm border`
         },
       }),
-
+      BulletList.configure({
+        HTMLAttributes: {
+          class: `list-disc pl-6`,
+        },
+      }),
+      OrderedList.configure({
+        HTMLAttributes: {
+          class: `list-decimal pl-6`,
+        },
+      }),
+      ListItem,
       Underline,
       Subscript,
       Blockquote.configure({
@@ -187,29 +225,14 @@ const RichTextEditor = () => {
       TableRow,
       TableHeader,
       TableCell,
-      Code,
+      Code.configure({
+        HTMLAttributes: {
+          class: "bg-purple-100 text-gray-800 p-1 rounded font-mono text-sm border border-gray-300 dark:border-gray-700"
 
+        },
+      }),
     ],
-    content: `
-      <h1>Welcome to the <b> gopzCollab </b> Rich Text Editor!</h1>
-    <p>This is a comprehensive rich text editor with full formatting capabilities. You can:</p>
-    <ul>
-      <li><strong>Bold</strong>, <em>italic</em>, and <u>underline</u> text</li>
-      <li>Create <mark style="background-color: yellow;">highlighted text</mark> and <s>strikethrough</s></li>
-      <li>Add different heading levels and alignment</li>
-      <li>Insert code blocks and inline code</li>
-      <li>Create tables with full functionality</li>
-    </ul>
-    <blockquote style="border-left: 4px solid #3b82f6; padding-left: 16px; margin: 16px 0; font-style: italic; color: #64748b;">
-      "The best way to predict the future is to create it." - Peter Drucker
-    </blockquote>
-    <p>Here's an example of inline <code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace;">inline code</code> and a code block:</p>
-    <pre style="padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; overflow-x: auto; font-family: 'Courier New', monospace;"><code>function greeting(name) {
-  return \`Hello, \${name}!\`;
-}
-console.log(greeting('World'));</code></pre>
-      <p>Try out all the formatting options above.</p>
-    `,
+    content: `<p>Type your text here...</p>`,
     onUpdate: ({ editor }) => {
       const text = editor.getText()
       setWordCount(text.trim().split(/\s+/).filter(word => word.length > 0).length)
@@ -229,28 +252,41 @@ console.log(greeting('World'));</code></pre>
     }
   }
 
+  const saveContent = (format = 'html') => {
+    const html = editor.getHTML();
 
+    if (format === 'html') {
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      downloadFile(url, 'document.html');
+    }
 
-  const insertTable = () => {
-    const rows = parseInt(window.prompt('Number of rows:', '3')) || 3
-    const cols = parseInt(window.prompt('Number of columns:', '3')) || 3
+    if (format === 'docx') {
+      const docxBlob = htmlDocx.asBlob(html);
+      const url = URL.createObjectURL(docxBlob);
+      downloadFile(url, 'document.docx');
+    }
 
-    editor
-      .chain()
-      .focus()
-      .insertTable({ rows, cols, withHeaderRow: true })
-      .run()
-  }
+    if (format === 'pdf') {
+      const element = document.createElement('div');
+      element.innerHTML = html;
 
-  const saveContent = () => {
-    const html = editor.getHTML()
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'document.html'
-    a.click()
-  }
+      html2pdf().from(element).set({
+        margin: 10,
+        filename: 'document.pdf',
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).save();
+    }
+  };
+
+  const downloadFile = (url, filename) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const setLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href
@@ -299,7 +335,7 @@ console.log(greeting('World'));</code></pre>
             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <button
-            onClick={saveContent}
+            onClick={() => setOpen(!open)}
             className={`p-2 rounded-lg transition-colors ${buttonClasses}`}
             title="Save Document"
           >
@@ -534,9 +570,9 @@ console.log(greeting('World'));</code></pre>
           {/* Table and Advanced */}
           <div className="flex items-center space-x-1">
             <button
-              onClick={insertTable}
+              onClick={() => { setTableModalShow(!tableModalShow) }}
               className={`p-2 rounded transition-colors ${buttonClasses}`}
-              title="Insert Table"
+              title="Table Options"
             >
               <TableIcon className="w-4 h-4" />
             </button>
@@ -595,6 +631,157 @@ console.log(greeting('World'));</code></pre>
                   className={`px-2 py-1 text-xs rounded border ${buttonClasses} border-gray-300 dark:border-gray-600`}
                 >
                   Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table Modal */}
+        {tableModalShow && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Insert Table"
+                >
+                  <TableIcon className="w-4 h-4" />
+                </button>
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Add column before"
+                  onClick={() => editor.chain().focus().addColumnBefore().run()}>
+                  <PlusCircle className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Add column after"
+                  onClick={() => editor.chain().focus().addColumnAfter().run()}
+                >
+                  <PlusSquare className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Delete column"
+                  onClick={() => editor.chain().focus().deleteColumn().run()}
+                >
+                  <MinusSquare className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Add row before"
+                  onClick={() => editor.chain().focus().addRowBefore().run()}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Add row after"
+                  onClick={() => editor.chain().focus().addRowAfter().run()}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Delete row"
+                  onClick={() => editor.chain().focus().deleteRow().run()}
+                >
+                  <MinusCircle className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Delete table"
+                  onClick={() => editor.chain().focus().deleteTable().run()}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Merge cells"
+                  onClick={() => editor.chain().focus().mergeCells().run()}
+                >
+                  <Merge className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Split cell"
+                  onClick={() => editor.chain().focus().splitCell().run()}
+                >
+                  <Split className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Toggle header column"
+                  onClick={() => editor.chain().focus().toggleHeaderColumn().run()}
+                >
+                  <Columns2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Toggle header row"
+                  onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+                >
+                  <LayoutList className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Toggle header cell"
+                  onClick={() => editor.chain().focus().toggleHeaderCell().run()}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Merge or split"
+                  onClick={() => editor.chain().focus().mergeOrSplit().run()}
+                >
+                  <DivideSquare className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Set cell attribute (colspan 2)"
+                  onClick={() => editor.chain().focus().setCellAttribute('colspan', 2).run()}
+                >
+                  <TableProperties className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Fix tables"
+                  onClick={() => editor.chain().focus().fixTables().run()}
+                >
+                  <Wand2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Go to next cell"
+                  onClick={() => editor.chain().focus().goToNextCell().run()}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  className={`p-2 rounded transition-colors ${buttonClasses}`}
+                  title="Go to previous cell"
+                  onClick={() => editor.chain().focus().goToPreviousCell().run()}
+                >
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -665,6 +852,60 @@ console.log(greeting('World'));</code></pre>
           </div>
         </details>
       </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div
+            className={`p-6 rounded-xl w-[340px] shadow-xl border ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-gray-100'
+              : 'bg-white border-gray-200 text-gray-900'
+              }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-semibold tracking-tight">Download Format</h2>
+              <button
+                onClick={() => setOpen(false)}
+                title="Close"
+                className={`rounded-full p-1 ${buttonClasses} hover:bg-gray-200 dark:hover:bg-gray-700`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="space-y-3">
+              <button
+                onClick={() => saveContent('html')}
+                title="Download as .html"
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:shadow-md transition ${buttonClasses}`}
+              >
+                <FileText className="w-5 h-5" />
+                HTML (.html)
+              </button>
+
+              <button
+                onClick={() => saveContent('docx')}
+                title="Download as .docx"
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:shadow-md transition ${buttonClasses}`}
+              >
+                <FileDown className="w-5 h-5" />
+                Word (.docx)
+              </button>
+
+              <button
+                onClick={() => saveContent('pdf')}
+                title="Download as .pdf"
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:shadow-md transition ${buttonClasses}`}
+              >
+                <FileArchive className="w-5 h-5" />
+                PDF (.pdf)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </div>
   )
 }
