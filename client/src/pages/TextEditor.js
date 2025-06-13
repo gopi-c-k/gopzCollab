@@ -1,5 +1,6 @@
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Blockquote from '@tiptap/extension-blockquote'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Link from '@tiptap/extension-link'
@@ -13,6 +14,8 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript'
 import {
   Bold,
   Italic,
@@ -46,8 +49,11 @@ import {
   Trash2,
   Plus,
   Minus,
+  Superscript as SuperscriptIcon,
+  Subscript as SubscriptIcon,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
 import CodeBlock from '@tiptap/extension-code-block'
 
 const RichTextEditor = () => {
@@ -55,30 +61,56 @@ const RichTextEditor = () => {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [wordCount, setWordCount] = useState(0)
   const [charCount, setCharCount] = useState(0)
+  const [extensionClasses, setExtensionClasses] = useState('')
+
+
+  const themeClasses = isDarkMode
+    ? 'bg-gray-900 text-white'
+    : 'bg-gray-50 text-gray-900'
+
+  const toolbarClasses = isDarkMode
+    ? 'bg-gray-800 border-gray-700'
+    : 'bg-white border-gray-200'
+
+  const editorClasses = isDarkMode
+    ? 'bg-gray-800 border-gray-700 text-white'
+    : 'bg-white border-gray-300 text-gray-900'
+
+  const buttonClasses = isDarkMode
+    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+    : 'bg-white hover:bg-gray-100 text-gray-700 hover:text-gray-900'
+
+  const activeButtonClasses = isDarkMode
+    ? 'border-2 border-blue-500'
+    : 'border-2 border-blue-400'
+
 
   const editor = useEditor({
+    key: isDarkMode ? 'dark-editor' : 'light-editor',
     extensions: [
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3],
         },
-        // codeBlock: {
-        //   HTMLAttributes: {
-        //     class: isDarkMode
-        //       ? 'bg-gray-700 text-gray-100 p-4 rounded-md'
-        //       : 'bg-gray-100 text-gray-800 p-4 rounded-md',
-        //   },
-        // },
       }),
       CodeBlock.configure({
-        HTMLAttributes: {
-          class: isDarkMode ? 'dark:bg-gray-800 dark:text-gray-100 p-4 rounded-md overflow-x-auto font-mono text-sm border border-gray-700'
-            : 'bg-gray-100 text-gray-800 p-4 rounded-md overflow-x-auto font-mono text-sm border border-gray-200',
-        },
         languageClassPrefix: 'language-',
         defaultLanguage: 'javascript',
+        HTMLAttributes: {
+          class: `${isDarkMode
+            ? 'bg-gray-800 text-red-100 border-gray-700'
+            : 'bg-gray-100 text-gray-800 border-gray-200'} p-4 rounded-md overflow-x-auto font-mono text-sm border`
+        },
       }),
+
       Underline,
+      Subscript,
+      Blockquote.configure({
+        HTMLAttributes: {
+          class: `${isDarkMode && 'bg-gray-800 text-gray-300'} border-l-4 border-blue-500 pl-4 italic my-4`,
+        }
+      }),
+      Superscript,
       TextStyle,
       Color,
       Highlight.configure({
@@ -90,8 +122,54 @@ const RichTextEditor = () => {
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-500 hover:underline',
+          class: `${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'} cursor-pointer underline`,
         },
+        autolink: true,
+        defaultProtocol: 'https',
+        protocols: ['http', 'https'],
+        isAllowedUri: (url, ctx) => {
+          try {
+            const parsedUrl = url.includes(':') ? new URL(url) : new URL(`${ctx.defaultProtocol}://${url}`)
+            if (!ctx.defaultValidate(parsedUrl.href)) {
+              return false
+            }
+
+            const disallowedProtocols = ['ftp', 'file', 'mailto']
+            const protocol = parsedUrl.protocol.replace(':', '')
+
+            if (disallowedProtocols.includes(protocol)) {
+              return false
+            }
+
+            const allowedProtocols = ctx.protocols.map(p => (typeof p === 'string' ? p : p.scheme))
+
+            if (!allowedProtocols.includes(protocol)) {
+              return false
+            }
+
+            const disallowedDomains = ['example-phishing.com', 'malicious-site.net']
+            const domain = parsedUrl.hostname
+
+            if (disallowedDomains.includes(domain)) {
+              return false
+            }
+            return true
+          } catch {
+            return false
+          }
+        },
+        shouldAutoLink: url => {
+          try {
+            const parsedUrl = url.includes(':') ? new URL(url) : new URL(`https://${url}`)
+            const disallowedDomains = ['example-no-autolink.com', 'another-no-autolink.com']
+            const domain = parsedUrl.hostname
+
+            return !disallowedDomains.includes(domain)
+          } catch {
+            return false
+          }
+        },
+
       }),
       Image.configure({
         inline: true,
@@ -110,6 +188,7 @@ const RichTextEditor = () => {
       TableHeader,
       TableCell,
       Code,
+
     ],
     content: `
       <h1>Welcome to the <b> gopzCollab </b> Rich Text Editor!</h1>
@@ -150,21 +229,7 @@ console.log(greeting('World'));</code></pre>
     }
   }
 
-  const setLink = () => {
-    const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
 
-    if (url === null) {
-      return
-    }
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-  }
 
   const insertTable = () => {
     const rows = parseInt(window.prompt('Number of rows:', '3')) || 3
@@ -187,29 +252,31 @@ console.log(greeting('World'));</code></pre>
     a.click()
   }
 
+  const setLink = useCallback(() => {
+    const previousUrl = editor.getAttributes('link').href
+    const url = window.prompt('URL', previousUrl)
+    if (url === null) {
+      return
+    }
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink()
+        .run()
+
+      return
+    }
+    try {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url })
+        .run()
+    } catch (e) {
+      alert(e.message)
+    }
+  }, [editor])
+
   if (!editor) {
     return null
   }
 
-  const themeClasses = isDarkMode
-    ? 'bg-gray-900 text-white'
-    : 'bg-gray-50 text-gray-900'
 
-  const toolbarClasses = isDarkMode
-    ? 'bg-gray-800 border-gray-700'
-    : 'bg-white border-gray-200'
-
-  const editorClasses = isDarkMode
-    ? 'bg-gray-800 border-gray-700 text-white'
-    : 'bg-white border-gray-300 text-gray-900'
-
-  const buttonClasses = isDarkMode
-    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
-    : 'bg-white hover:bg-gray-100 text-gray-700 hover:text-gray-900'
-
-  const activeButtonClasses = isDarkMode
-    ? 'border-2 border-blue-500'
-    : 'border-2 border-blue-400'
 
   return (
     <div className={`min-h-screen p-6 transition-all duration-300 ${themeClasses}`}>
@@ -220,7 +287,7 @@ console.log(greeting('World'));</code></pre>
           <img
             src="/assets/Images/Logo.png"
             className='w-44'
-            ></img>
+          ></img>
           <h1 className="text-2xl font-bold">Text Editor</h1>
         </div>
         <div className="flex items-center space-x-3">
@@ -267,7 +334,7 @@ console.log(greeting('World'));</code></pre>
           <div className={`w-px h-6 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
 
           {/* Text Formatting */}
-          <div className="flex items-center space-x-1 mr-4">
+          <div className="flex items-center space-x-1 mr-2">
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
               className={`p-2 rounded transition-colors ${buttonClasses} ${editor.isActive('bold') ? activeButtonClasses : ''}`}
@@ -302,6 +369,20 @@ console.log(greeting('World'));</code></pre>
               title="Highlight Text"
             >
               <Highlighter className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleSubscript().run()}
+              className={`p-2 rounded transition-colors ${buttonClasses} ${editor.isActive('subscript') ? activeButtonClasses : ''}`}
+              title="Subscript (Ctrl+Shift+-)"
+            >
+              <SubscriptIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleSuperscript().run()}
+              className={`p-2 rounded transition-colors ${buttonClasses} ${editor.isActive('superscript') ? activeButtonClasses : ''}`}
+              title="Subscript (Ctrl+Shift+-)"
+            >
+              <SuperscriptIcon className="w-4 h-4" />
             </button>
           </div>
 
@@ -527,25 +608,25 @@ console.log(greeting('World'));</code></pre>
           <div className={`flex items-center space-x-1 p-1 rounded shadow-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'}`}>
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-1 rounded ${editor.isActive('bold') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
+              className={`p-1 rounded ${buttonClasses} ${editor.isActive('bold') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
             >
               <Bold className="w-4 h-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-1 rounded ${editor.isActive('italic') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
+              className={`p-1 ${buttonClasses} rounded ${editor.isActive('italic') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
             >
               <Italic className="w-4 h-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`p-1 rounded ${editor.isActive('underline') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
+              className={`p-1 rounded ${buttonClasses} ${editor.isActive('underline') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
             >
               <UnderlineIcon className="w-4 h-4" />
             </button>
             <button
               onClick={setLink}
-              className={`p-1 rounded ${editor.isActive('link') ? (isDarkMode ? 'bg-blue-600' : 'bg-blue-500') : ''}`}
+              className={`p-1 rounded ${buttonClasses} ${editor.isActive('link') ? (isDarkMode && activeButtonClasses) : ''}`}
             >
               <LinkIcon className="w-4 h-4" />
             </button>
@@ -575,12 +656,12 @@ console.log(greeting('World'));</code></pre>
         <details>
           <summary className="cursor-pointer hover:text-blue-500">Keyboard Shortcuts</summary>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+B</kbd> Bold</span>
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+I</kbd> Italic</span>
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+U</kbd> Underline</span>
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+K</kbd> Insert Link</span>
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Ctrl+`</kbd> Inline Code</span>
-            <span><kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Tab</kbd> Indent in Code</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Ctrl+B</kbd> Bold</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Ctrl+I</kbd> Italic</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Ctrl+U</kbd> Underline</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Ctrl+K</kbd> Insert Link</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Ctrl+`</kbd> Inline Code</span>
+            <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Tab</kbd> Indent in Code</span>
           </div>
         </details>
       </div>
