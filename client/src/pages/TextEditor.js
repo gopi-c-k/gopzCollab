@@ -78,7 +78,7 @@ import {
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
 } from 'lucide-react'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 
 import CodeBlock from '@tiptap/extension-code-block'
 
@@ -228,7 +228,6 @@ const RichTextEditor = () => {
       Code.configure({
         HTMLAttributes: {
           class: "bg-purple-100 text-gray-800 p-1 rounded font-mono text-sm border border-gray-300 dark:border-gray-700"
-
         },
       }),
     ],
@@ -321,6 +320,7 @@ const RichTextEditor = () => {
         <div className="flex items-center space-x-3">
           <FileText className="w-8 h-8 text-blue-500" />
           <img
+            alt="Logo"
             src="/assets/Images/Logo.png"
             className='w-44'
           ></img>

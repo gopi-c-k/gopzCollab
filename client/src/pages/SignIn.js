@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import storeFirebaseToken from "../api/storeToken";
 import { FcGoogle } from "react-icons/fc";
@@ -18,14 +18,13 @@ function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [loggedInUser, setLoggedInUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
 
-    const emailPattern = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    const emailPattern = /^\w+([-]?\w+)*@\w+([-]?\w+)*(\.\w{2,3})+$/;
     if (!emailPattern.test(email)) {
       setErrorMessage("Enter a valid email.");
       return;
@@ -44,8 +43,6 @@ function SignIn() {
         setErrorMessage("Email not verified. A new verification link was sent.");
         await signOut(auth);
       } else {
-        const token = await user.getIdToken();
-        setLoggedInUser(user.email);
         const res = await axiosInstance.post("/user/create");
         if (res.status === 200 || res.status === 201) {
           await storeFirebaseToken();
@@ -61,10 +58,7 @@ function SignIn() {
   const handleGoogleSignIn = async () => {
     setErrorMessage("");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const token = await user.getIdToken();
-      setLoggedInUser(user.email);
+      await signInWithPopup(auth, googleProvider);
       const res = await axiosInstance.post("/user/create");
       if (res.status === 200 || res.status === 201) {
         await storeFirebaseToken();
