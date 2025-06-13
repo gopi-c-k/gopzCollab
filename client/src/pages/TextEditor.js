@@ -82,12 +82,9 @@ import {
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
 } from 'lucide-react'
-<<<<<<< HEAD
-import { useState, useCallback, useEffect,useMemo } from 'react'
-=======
-import { useState, useCallback } from 'react'
->>>>>>> 8764217d10c549b636b760de9d0511cef549bc23
 
+import { useState, useCallback, useEffect,useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
 
 const RichTextEditor = () => {
