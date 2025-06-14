@@ -11,10 +11,10 @@ const createDocument = async (req, res) => {
         if (!['text', 'code', 'canvas'].includes(type)) {
             return res.status(400).json({ message: "Invalid document type." });
         }
-        const userContent = '';
+        var userContent = '';
         if (type === 'text') {
             const { content } = req.body;
-            if (!content)
+            if (content)
                 userContent = content;
         }
         const user = await User.findOne({ email: req.user.email });
@@ -28,7 +28,7 @@ const createDocument = async (req, res) => {
             type,
             owner: user._id,
             collaborators: [],
-            content: userContent || '',
+            content: userContent,
             canvasData: {},
         });
 

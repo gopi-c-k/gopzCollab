@@ -26,7 +26,6 @@ const documentSchema = new mongoose.Schema({
   ],
   code: {
     type: String,
-    required: true,
     unique: true,
     match: /^\d{6}$/, // Ensures exactly 6 digits
   },

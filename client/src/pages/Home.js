@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Bell } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import Notification from '../components/Notification';
-//const response = await axiosInstance.get(`/room/details/${room._id}`);
-//import logo from '../assets/logo.png';
+import mammoth from 'mammoth';
+import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+
 
 const Home = () => {
   const [userName, setUserName] = useState(" ");
@@ -76,10 +78,14 @@ const Home = () => {
     }
     try {
       setLoading(true);
-
+      var content = '';
+      if (roomType === 'text' && htmlContent) {
+        content = htmlContent;
+      }
       const response = await axiosInstance.post('/room/create', {
         title: roomTitle,
-        type: roomType
+        type: roomType,
+        content: content
       });
 
       if (response.status === 200 || response.status === 201) {
@@ -197,6 +203,79 @@ const Home = () => {
       setDeleteRoomLoading(false);
     }
   }
+  const [htmlContent, setHtmlContent] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsFileLoading(true);
+    setError('');
+    setFileName(file.name);
+
+    try {
+      const fileType = file.type;
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      if (
+        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        fileExtension === 'docx'
+      ) {
+        await extractTextFromDocx(file);
+      } else if (fileType === 'text/html' || fileExtension === 'html') {
+        await extractTextFromHtml(file);
+      } else {
+        throw new Error('Unsupported file type. Please upload a PDF, DOCX, or HTML file.');
+      }
+      if (!htmlContent) {
+        setSnackbarMessage('No text extracted from the file. Please try a different file.');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
+        throw new Error('No text extracted from the file. Please try a different file.');
+
+      }
+      setSnackbarMessage('File processed successfully!');
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 3000);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error processing file:', err);
+    } finally {
+      setIsFileLoading(false);
+    }
+  };
+
+
+  const extractTextFromDocx = async (file) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+
+    const htmlText = result.value
+      .split('\n\n')
+      .filter(para => para.trim())
+      .map(para => `<p>${para.replace(/\n/g, ' ').trim()}</p>`)
+      .join('');
+
+    setHtmlContent(htmlText);
+  };
+
+  const extractTextFromHtml = async (file) => {
+    const text = await file.text();
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+
+    const images = doc.querySelectorAll('img');
+    images.forEach(img => img.remove());
+    const bodyContent = doc.body.innerHTML;
+
+    setHtmlContent(bodyContent);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
@@ -204,9 +283,9 @@ const Home = () => {
         <img src="/assets/Images/Logo.png" alt="Logo" className="h-10 mb-2" />
 
         <div className="flex items-center space-x-4 mb-2">
-          <button 
-          onClick={() => navigate('/notification')}
-          className="relative bg-yellow-400 text-white p-2 rounded-full">
+          <button
+            onClick={() => navigate('/notification')}
+            className="relative bg-yellow-400 text-white p-2 rounded-full">
             <Bell />
             {notificationsCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-600 text-xs text-white w-5 h-5 flex items-center justify-center rounded-full">
@@ -241,7 +320,6 @@ const Home = () => {
               className="relative w-40 h-40 bg-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col justify-between overflow-hidden"
               onClick={() => handleRoomClick(room)}
             >
-              {/*Delete & Details icon */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -397,6 +475,16 @@ const Home = () => {
                   <option value="code">Code</option>
                   <option value="canvas">Canvas</option>
                 </select>
+                {roomType === 'text' && (<>
+                  <p className="text-sm text-gray-600 mb-2">If you want edit a existing file upload it:</p>
+                  <input
+                    type="file"
+                    accept=".docx,.html"
+                    onChange={handleFileUpload}
+                    disabled={isFileLoading}
+                    style={{ padding: '10px' }}
+                  /></>
+                )}
                 <button
                   onClick={() => handleCreateRoom()}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full mb-4"
@@ -448,7 +536,7 @@ const Home = () => {
             {/* Optional close (X) button */}
             <button
               className="absolute top-2 right-3 text-gray-600 hover:text-gray-800"
-              onClick={() => setShowModal(false)}
+              onClick={() => { setShowModal(false); setJoinRoomModal(false); setCreateRoomModal(false); }}
             >
               ×
             </button>
