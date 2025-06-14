@@ -20,6 +20,7 @@ const Home = () => {
   const [roomType, setRoomType] = useState('text');
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notificationsCount, setNotificationsCount] = useState(0);
 
   // For room details
   const [roomDetailsLoading, setRoomDetailsLoading] = useState(false);
@@ -48,6 +49,7 @@ const Home = () => {
         setProfilePic(data.profilePic);
         setCreatedRooms(data.createdRooms);
         setJoinedRooms(data.joinedRooms);
+        setNotificationsCount(data.notificationsCount);
       } catch (error) {
         navigate('/signin');
         console.error('Error fetching user data:', error);
@@ -202,9 +204,17 @@ const Home = () => {
         <img src="/assets/Images/Logo.png" alt="Logo" className="h-10 mb-2" />
 
         <div className="flex items-center space-x-4 mb-2">
-          <button className="bg-yellow-400 text-white p-2 rounded-full">
+          <button 
+          onClick={() => navigate('/notification')}
+          className="relative bg-yellow-400 text-white p-2 rounded-full">
             <Bell />
+            {notificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-xs text-white w-5 h-5 flex items-center justify-center rounded-full">
+                {notificationsCount > 99 ? '99+' : notificationsCount}
+              </span>
+            )}
           </button>
+
           <button className="bg-blue-600 text-white p-2 rounded-full">
             <img
               src={profilePic || '/assets/Images/defaultProfilePic.png'}
@@ -523,8 +533,8 @@ const Home = () => {
                 onClick={() => handleDeleteRoom(roomToDelete)}
                 disabled={deleteConfirmationInput !== roomToDelete.title || deleteRoomLoading}
                 className={`px-4 py-2 rounded text-white ${deleteConfirmationInput === roomToDelete.title && !deleteRoomLoading
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-red-300 cursor-not-allowed'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-red-300 cursor-not-allowed'
                   }`}
               >
                 {deleteRoomLoading ? 'Deleting...' : 'Delete'}

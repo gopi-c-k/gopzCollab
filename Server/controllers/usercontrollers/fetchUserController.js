@@ -1,5 +1,6 @@
 const User = require('../../models/user');
 const Document = require('../../models/document');
+const Notification = require('../../models/notification');
 
 const fetchUser = async (req, res) => {
     try {
@@ -28,12 +29,14 @@ const fetchUser = async (req, res) => {
         joinedRooms.forEach(room => {
             room.owner = false;
         });
+        const notificationsCount = await Notification.countDocuments({ user: user._id, isRead: false });
 
         return res.status(200).json({
             name: user.name,
             profilePic: user.profilePic,
             createdRooms,
-            joinedRooms
+            joinedRooms,
+            notificationsCount
         });
 
     } catch (error) {
