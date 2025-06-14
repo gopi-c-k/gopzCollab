@@ -1,5 +1,4 @@
 const Document = require('../../models/document');
-const User = require('../../models/user');
 
 const getRoomDetails = async (req, res) => {
   try {

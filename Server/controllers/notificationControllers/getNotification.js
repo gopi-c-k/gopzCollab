@@ -26,9 +26,11 @@ const getNotification = async (req, res) => {
                 _id: notification._id,
                 type: notification.type,
                 document: notification.document ? {
+                    _id: notification.document._id,
                     title: notification.document.title
                 } : null,
                 sender: notification.sender ? {
+                    _id: notification.sender._id,
                     name: notification.sender.name,
                     profilePic: notification.sender.profilePic
                 } : null,
