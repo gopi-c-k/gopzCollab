@@ -1,17 +1,24 @@
 .App {
   text-align: center;
 }
+
 :root {
-  --gray-3: #d1d5db; /* light mode border */
-  --gray-2: #e5e7eb; /* light mode cell selection */
-  --purple: #7c3aed; /* resize handle */
+  --gray-3: #d1d5db;
+  /* light mode border */
+  --gray-2: #e5e7eb;
+  /* light mode cell selection */
+  --purple: #7c3aed;
+  /* resize handle */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --gray-3: #4b5563; /* dark mode border */
-    --gray-2: #374151; /* dark mode cell selection */
-    --purple: #a78bfa; /* slightly lighter purple for visibility */
+    --gray-3: #4b5563;
+    /* dark mode border */
+    --gray-2: #374151;
+    /* dark mode cell selection */
+    --purple: #a78bfa;
+    /* slightly lighter purple for visibility */
   }
 }
 
@@ -74,6 +81,33 @@ button:hover {
 .tiptap {
   :first-child {
     margin-top: 0;
+  }
+
+  /* Give a remote user a caret */
+  .collaboration-cursor__caret {
+    border-left: 1px solid #0d0d0d;
+    border-right: 1px solid #0d0d0d;
+    margin-left: -1px;
+    margin-right: -1px;
+    pointer-events: none;
+    position: relative;
+    word-break: normal;
+  }
+
+  /* Render the username above the caret */
+  .collaboration-cursor__label {
+    border-radius: 3px 3px 3px 0;
+    color: #0d0d0d;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 600;
+    left: -1px;
+    line-height: normal;
+    padding: 0.1rem 0.3rem;
+    position: absolute;
+    top: -1.4em;
+    user-select: none;
+    white-space: nowrap;
   }
 
   /* Table-specific styling */

@@ -30,61 +30,13 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import {
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  Strikethrough,
-  Highlighter,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
-  List,
-  X,
-  ListOrdered,
-  PlusCircle,
-  PlusSquare,
-  MinusCircle,
-  MinusSquare,
-  Columns2,
-  DivideSquare,
-  ArrowDown,
-  ArrowUp,
-  ArrowLeft,
-  ArrowRight,
-  LayoutList,
-  LayoutGrid,
-  TableProperties,
-  Merge,
-  Split,
-  Wand2,
-  Undo,
-  Redo,
-  Type,
-  Heading1,
-  Heading2,
-  Heading3,
-  Quote,
-  Code as CodeIcon,
-  Code2,
-  Link as LinkIcon,
-  Unlink,
-  Image as ImageIcon,
-  Table as TableIcon,
-  Sun,
-  Moon,
-  Save,
-  FileText,
-  FileDown,
-  FileArchive,
-  Palette,
-  Trash2,
-  Superscript as SuperscriptIcon,
-  Subscript as SubscriptIcon,
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough, Highlighter, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, X, ListOrdered, PlusCircle, PlusSquare,
+  MinusCircle, MinusSquare, Columns2, DivideSquare, ArrowDown, ArrowUp, ArrowLeft, ArrowRight, LayoutList, LayoutGrid, TableProperties, Merge, Split, Wand2,
+  Undo, Redo, Type, Heading1, Heading2, Heading3, Quote, Code as CodeIcon, Code2, Link as LinkIcon, Unlink, Image as ImageIcon, Table as TableIcon, Sun,
+  Moon, Save, FileText, FileDown, FileArchive, Palette, Trash2, Superscript as SuperscriptIcon, Subscript as SubscriptIcon,
 } from 'lucide-react'
 
-import { useState, useCallback, useEffect,useMemo } from 'react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
 
 const RichTextEditor = () => {
@@ -95,10 +47,10 @@ const RichTextEditor = () => {
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
   const ydoc = useMemo(() => new Y.Doc(), [])
-const provider = useMemo(
-  () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
-  [ydoc]
-)
+  const provider = useMemo(
+    () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
+    [ydoc]
+  )
 
 
   const themeClasses = isDarkMode
@@ -241,11 +193,10 @@ const provider = useMemo(
           class: "bg-purple-100 text-gray-800 p-1 rounded font-mono text-sm border border-gray-300 dark:border-gray-700"
         },
       }),
-       // ADD THESE TWO LINES:
-    Collaboration.configure({
-      document: ydoc,
-    }),
-    
+      Collaboration.configure({
+        document: ydoc,
+      }),
+
       CollaborationCursor.configure({
         provider,
         user: {

@@ -24,7 +24,12 @@ const documentSchema = new mongoose.Schema({
       ref: 'User',
     },
   ],
-
+  code: {
+    type: String,
+    required: true,
+    unique: true,
+    match: /^\d{6}$/, // Ensures exactly 6 digits
+  },
   // 💬 For text/code
   content: {
     type: String,
@@ -46,6 +51,21 @@ const documentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+});
+
+documentSchema.pre('save', async function (next) {
+  if (this.isNew) {
+    let codeExists = true;
+    while (codeExists) {
+      const randomCode = String(Math.floor(100000 + Math.random() * 900000));
+      const existingDoc = await mongoose.models.Document.findOne({ code: randomCode });
+      if (!existingDoc) {
+        this.code = randomCode;
+        codeExists = false;
+      }
+    }
+  }
+  next();
 });
 
 module.exports = mongoose.model('Document', documentSchema);
