@@ -5,7 +5,6 @@ const verifyDocumentOwnership = (allowedRoles = []) => {
   return async (req, res, next) => {
     const { documentId } = req.params;
     const userEmail = req.user.email;
-
     try {
       const document = await Document.findById(documentId);
       if (!document) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     User,
@@ -12,14 +12,21 @@ import {
     Bell
 } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
+import  Notifications from '../components/Notification';
 
 function Notification() {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
-
+    const hasFetched = useRef(false);
     const [loading, setLoading] = useState(true);
 
+    // For notifications
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarType, setSnackbarType] = useState('info');
+    const [showSnackbar, setShowSnackbar] = useState(false);
+
     useEffect(() => {
+
         const fetchNotifications = async () => {
             try {
                 const res = await axiosInstance.get('/user/notifications');
@@ -31,8 +38,24 @@ function Notification() {
                 setLoading(false);
             }
         };
-        fetchNotifications();
+        if (!hasFetched.current) {
+            fetchNotifications();
+            hasFetched.current = true;
+        }
     }, []);
+    const handleAcceeptRequest = async (documentId, joinerId) => {
+        try {
+            const res = await axiosInstance.post(`/room/join/${documentId}`, { documentId, joinerId });
+            if (res.status === 200) {
+                setSnackbarMessage('Collaboration request accepted successfully!');
+                setSnackbarType('success');
+                setShowSnackbar(true);
+                setTimeout(() => setShowSnackbar(false), 3000);
+            }
+        } catch (err) {
+            console.error('Error accepting request:', err);
+        }
+    };
 
     const getIconByType = (type) => {
         switch (type) {
@@ -132,9 +155,12 @@ function Notification() {
                                 </div>
                                 {notif.message && <div className="text-sm text-gray-600 mt-1">{notif.message}</div>}
                             </div>
-                            {notif.type === 'COLLAB_REQUEST' && notif.isRead && (
+                            {notif.type === 'COLLAB_REQUEST' && !notif.isRead && (
                                 <div className="flex gap-2">
-                                    <button className="px-3 py-1 text-sm bg-green-500 h-8 text-white rounded hover:bg-green-600">
+                                    <button
+                                        onClick={() => handleAcceeptRequest(notif.document._id, notif.sender._id)}
+                                        className="px-3 py-1 text-sm bg-green-500 h-8 text-white rounded hover:bg-green-600"
+                                    >
                                         Accept
                                     </button>
                                     <button className="px-3 py-1 text-sm bg-red-500 h-8 text-white rounded hover:bg-red-600">
@@ -145,6 +171,12 @@ function Notification() {
                         </div>
                     ))}
                 </div>
+            )}
+            {showSnackbar && (
+                <Notifications
+                    message={snackbarMessage}
+                    type={snackbarType}
+                />
             )}
         </div>
     );

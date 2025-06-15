@@ -4,8 +4,6 @@ import { Bell } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import Notification from '../components/Notification';
 import mammoth from 'mammoth';
-import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 
 
 const Home = () => {
@@ -127,16 +125,25 @@ const Home = () => {
     }
     try {
       setLoading(true);
-      const response = await axiosInstance.post('/room/join', {
-        code: joinRoomCode
+      const response = await axiosInstance.post('/room/request', {
+        joinCode: joinRoomCode
       });
       if (response.status === 200 || response.status === 201) {
-        alert("Joined room successfully!");
+        setSnackbarMessage(response.data.message || 'Room joined successfully!');
+        setSnackbarType('success');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
         setShowModal(false);
         setJoinRoomModal(false);
         setJoinRoomCode('');
         setLoading(false);
-        setJoinedRooms([...joinedRooms, response.data.roomTitle]);
+      }
+      if( response.status === 400) {
+        setSnackbarMessage(response.data.message || 'Failed to join room. Please check the code and try again.');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error joining room:', error);

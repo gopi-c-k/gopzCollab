@@ -19,16 +19,16 @@ const joinDocument = async (req, res) => {
         if (!joiner) {
             return res.status(404).json({ message: "Joiner not found" });
         }
-        if (document.collaborators.includes(user._id)) {
+        if (document.collaborators.includes(joinerId)) {
             return res.status(400).json({ message: "You are already a collaborator on this document." });
         }
 
-        document.collaborators.push(user._id);
+        document.collaborators.push(joinerId);
         await document.save();
 
         const newNotification = new Notification({
             user: joiner._id,
-            type: "COLLAB_ADDED",
+            type: "COLLAB_ACCEPTED",
             document: document._id,
             sender: user._id,
             message: `${userEmail} has joined the document "${document.title}".`
