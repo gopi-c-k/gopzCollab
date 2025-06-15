@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { Bell } from 'lucide-react';
+import { Bell, FilePlus, UserPlus } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import Notification from '../components/Notification';
 import mammoth from 'mammoth';
-
 
 const Home = () => {
   const [userName, setUserName] = useState(" ");
@@ -58,6 +57,11 @@ const Home = () => {
     fetchUserData();
   }, []);
 
+  const [htmlContent, setHtmlContent] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [error, setError] = useState('');
+
   const handleCreateRoom = async () => {
     // Logic to create a room 
     if (!roomTitle) {
@@ -76,7 +80,7 @@ const Home = () => {
     }
     try {
       setLoading(true);
-      var content = '';
+      let content = '';
       if (roomType === 'text' && htmlContent) {
         content = htmlContent;
       }
@@ -115,8 +119,8 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-
   };
+
   const handleJoinRoom = async () => {
     // Logic to join a room 
     if (!joinRoomCode || joinRoomCode.length !== 6) {
@@ -138,7 +142,7 @@ const Home = () => {
         setJoinRoomCode('');
         setLoading(false);
       }
-      if( response.status === 400) {
+      if (response.status === 400) {
         setSnackbarMessage(response.data.message || 'Failed to join room. Please check the code and try again.');
         setSnackbarType('error');
         setShowSnackbar(true);
@@ -151,16 +155,17 @@ const Home = () => {
       alert("Failed to join room. Please check the code and try again.");
     }
   }
-  const handleRoomClick = async (room) => {
 
+  const handleRoomClick = async (room) => {
+    // Implement navigation or logic for room click
   };
+
   const handleDetailsClick = async (room) => {
     setShowRoomDetails(true);
     setRoomDetailsLoading(true);
     try {
       const response = await axiosInstance.get(`/room/details/${room._id}`);
       if (response.status === 200) {
-        console.log(response.data);
         setRoomDetails(response.data);
         setRoomDetailsLoading(false);
       } else {
@@ -182,13 +187,13 @@ const Home = () => {
           setSnackbarType('success');
           setShowSnackbar(true);
           setTimeout(() => setShowSnackbar(false), 3000);
-          setCreatedRooms(createdRooms.filter(room => room._id !== roomId));
+          setCreatedRooms(createdRooms.filter(r => r._id !== roomId));
         } else {
           setSnackbarMessage('You have left the room successfully!');
           setSnackbarType('success');
           setShowSnackbar(true);
           setTimeout(() => setShowSnackbar(false), 3000);
-          setJoinedRooms(joinedRooms.filter(room => room._id !== roomId));
+          setJoinedRooms(joinedRooms.filter(r => r._id !== roomId));
         }
         setShowDeleteModal(false);
         setRoomToDelete(null);
@@ -210,10 +215,6 @@ const Home = () => {
       setDeleteRoomLoading(false);
     }
   }
-  const [htmlContent, setHtmlContent] = useState('');
-  const [fileName, setFileName] = useState('');
-  const [isFileLoading, setIsFileLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -234,7 +235,7 @@ const Home = () => {
       } else if (fileType === 'text/html' || fileExtension === 'html') {
         await extractTextFromHtml(file);
       } else {
-        throw new Error('Unsupported file type. Please upload a PDF, DOCX, or HTML file.');
+        throw new Error('Unsupported file type. Please upload a DOCX or HTML file.');
       }
       if (!htmlContent) {
         setSnackbarMessage('No text extracted from the file. Please try a different file.');
@@ -242,7 +243,6 @@ const Home = () => {
         setShowSnackbar(true);
         setTimeout(() => setShowSnackbar(false), 3000);
         throw new Error('No text extracted from the file. Please try a different file.');
-
       }
       setSnackbarMessage('File processed successfully!');
       setSnackbarType('success');
@@ -255,7 +255,6 @@ const Home = () => {
       setIsFileLoading(false);
     }
   };
-
 
   const extractTextFromDocx = async (file) => {
     const arrayBuffer = await file.arrayBuffer();
@@ -308,7 +307,6 @@ const Home = () => {
               className="w-6 h-6 rounded-full"
             />
           </button>
-
         </div>
       </div>
 
@@ -317,15 +315,17 @@ const Home = () => {
         <h2 className="text-2xl font-bold text-blue-700">Welcome, {userName}</h2>
       </div>
 
-      {/* Created Rooms - One Line */}
-      <div className="mb-12 bg-white p-4 rounded-lg shadow-md">
+      {/* Created Rooms */}
+      <div className="mb-4 bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Created Rooms</h2>
         <div className="flex flex-wrap gap-6">
+          {/* Existing Created Rooms */}
           {createdRooms.map((room, index) => (
             <div
               key={index}
               className="relative w-40 h-40 bg-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col justify-between overflow-hidden"
               onClick={() => handleRoomClick(room)}
+              style={{ minWidth: '160px', minHeight: '160px' }}
             >
               <button
                 onClick={(e) => {
@@ -385,21 +385,33 @@ const Home = () => {
               </div>
             </div>
           ))}
-          <button onClick={() => { setShowModal(true); setShowMainModal(true); }} className="w-40 h-40 bg-gradient-to-r from-blue-100 to-blue-300 flex flex-col items-center justify-center rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform">
-            <div className="text-4xl text-blue-700 mb-1">+</div>
-            <div className="text-blue-800 font-semibold text-center text-sm">Create/Join Room</div>
-          </button>
+          {/* Create Room Card - always at the end */}
+          <div
+            className="relative w-40 h-40 rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col items-center justify-center"
+            style={{
+              minWidth: '160px',
+              minHeight: '160px',
+              background: 'linear-gradient(135deg, #b3c6ff 0%, #e0e7ff 100%)'
+            }}
+            onClick={() => { setShowModal(true); setShowMainModal(false); setCreateRoomModal(true); setJoinRoomModal(false); }}
+          >
+            <FilePlus size={40} className="mb-2 text-blue-700" />
+            <span className="text-lg font-semibold text-blue-800">Create Room</span>
+          </div>
         </div>
       </div>
 
-      <div className='bg-white p-4 rounded-lg shadow-md'>
+      {/* Joined Rooms */}
+      <div className='bg-white p-4 rounded-lg shadow-md mb-4'>
         <h2 className="text-xl font-semibold mb-4">Joined Rooms</h2>
         <div className="flex flex-wrap gap-6">
-          {joinedRooms.length ? joinedRooms.map((room, index) => (
+          {/* Existing Joined Rooms */}
+          {joinedRooms.length > 0 && joinedRooms.map((room, index) => (
             <div
               key={index}
               className="relative w-40 h-40 bg-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col justify-between overflow-hidden"
               onClick={() => handleRoomClick(room)}
+              style={{ minWidth: '160px', minHeight: '160px' }}
             >
               {/* Details icon */}
               <button
@@ -434,18 +446,30 @@ const Home = () => {
                 />
               </div>
             </div>
-          )) : (
-            <div className="w-full text-center text-gray-500">No joined rooms yet.</div>
-          )}
+          ))}
+          {/* Join Room Card - always at the end */}
+          <div
+            className="relative w-40 h-40 rounded-xl shadow-md hover:shadow-lg transition cursor-pointer hover:scale-105 flex flex-col items-center justify-center"
+            style={{
+              minWidth: '160px',
+              minHeight: '160px',
+              background: 'linear-gradient(135deg, #b2f7ef 0%, #e0f7fa 100%)'
+            }}
+            onClick={() => { setShowModal(true); setShowMainModal(false); setCreateRoomModal(false); setJoinRoomModal(true); }}
+          >
+            <UserPlus size={40} className="mb-2 text-green-700" />
+            <span className="text-lg font-semibold text-green-800">Join Room</span>
+          </div>
         </div>
       </div>
+
+      {/* Modals and Notifications */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
             <h2 className="text-xl font-semibold mb-4 text-blue-600">{showMainModal ? "Create or Join Room" : createRoomModal ? "Create Room" : "Join Room"}</h2>
 
             {/* Modal content goes here */}
-
             {showMainModal && (
               <div className="space-y-1">
                 <button
@@ -483,7 +507,7 @@ const Home = () => {
                   <option value="canvas">Canvas</option>
                 </select>
                 {roomType === 'text' && (<>
-                  <p className="text-sm text-gray-600 mb-2">If you want edit a existing file upload it:</p>
+                  <p className="text-sm text-gray-600 mb-2">If you want to edit an existing file, upload it:</p>
                   <input
                     type="file"
                     accept=".docx,.html"
@@ -495,19 +519,20 @@ const Home = () => {
                 <button
                   onClick={() => handleCreateRoom()}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full mb-4"
+                  disabled={loading}
                 >
-                  Create Room
+                  {loading ? 'Creating...' : 'Create Room'}
                 </button>
                 <button
-                  onClick={() => { setShowMainModal(true); setCreateRoomModal(false) }}
+                  onClick={() => { setShowModal(false); setCreateRoomModal(false); setJoinRoomModal(false); setShowMainModal(false); }}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full mb-4"
+                  disabled={loading}
                 >
                   Cancel
                 </button>
+              </div>
+            )}
 
-              </div>)
-
-            }
             {joinRoomModal && (
               <div>
                 <input
@@ -527,23 +552,23 @@ const Home = () => {
                 <button
                   onClick={() => handleJoinRoom()}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full mb-4"
+                  disabled={loading}
                 >
-                  Join Room
+                  {loading ? 'Joining...' : 'Join Room'}
                 </button>
                 <button
-                  onClick={() => { setShowMainModal(true); setJoinRoomModal(false); }}
+                  onClick={() => { setShowModal(false); setJoinRoomModal(false); setCreateRoomModal(false); setShowMainModal(false); }}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full mb-4"
+                  disabled={loading}
                 >
                   Cancel
                 </button>
-
-              </div>)
-
-            }
+              </div>
+            )}
             {/* Optional close (X) button */}
             <button
               className="absolute top-2 right-3 text-gray-600 hover:text-gray-800"
-              onClick={() => { setShowModal(false); setJoinRoomModal(false); setCreateRoomModal(false); }}
+              onClick={() => { setShowModal(false); setJoinRoomModal(false); setCreateRoomModal(false); setShowMainModal(false); }}
             >
               ×
             </button>
@@ -555,8 +580,8 @@ const Home = () => {
             )}
           </div>
         </div>
-      )
-      }
+      )}
+
       {(showRoomDetails && !roomDetailsLoading && roomDetails) ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
@@ -646,7 +671,7 @@ const Home = () => {
         />
       )}
 
-    </div >
+    </div>
   );
 };
 
