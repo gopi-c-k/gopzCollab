@@ -17,6 +17,10 @@ const documentSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  activeSession: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CollabSession',
+  },
 
   collaborators: [
     {

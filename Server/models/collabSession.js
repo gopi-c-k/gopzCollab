@@ -13,7 +13,11 @@ const CollabSessionSchema = new mongoose.Schema({
       ref: 'User',
     },
   ],
-
+  creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   startedAt: {
     type: Date,
     default: Date.now,
