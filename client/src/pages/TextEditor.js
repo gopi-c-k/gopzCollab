@@ -46,6 +46,7 @@ const RichTextEditor = () => {
   const [charCount, setCharCount] = useState(0)
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
+  const [viewers, setViewers] = useState([]);
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
     () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
@@ -281,6 +282,20 @@ const RichTextEditor = () => {
     }
   }, [editor])
 
+  // Track connected users
+  useEffect(() => {
+    const awarenessListener = () => {
+      const states = Array.from(provider.awareness.getStates().values());
+      setViewers(states.map(state => state.user));
+    };
+    provider.awareness.on('change', awarenessListener);
+    // Initial set
+    awarenessListener();
+    return () => {
+      provider.awareness.off('change', awarenessListener);
+    };
+  }, [provider]);
+
   if (!editor) {
     return null
   }
@@ -289,18 +304,49 @@ const RichTextEditor = () => {
 
   return (
     <div className={`min-h-screen p-6 transition-all duration-300 ${themeClasses}`}>
-      {/* Header */}
+      {/* Top Bar: Everything on the same line */}
       <div className="flex justify-between items-center mb-6">
+        {/* Left: Logo and Title */}
         <div className="flex items-center space-x-3">
           <FileText className="w-8 h-8 text-blue-500" />
           <img
             alt="Logo"
             src="/assets/Images/Logo.png"
             className='w-44'
-          ></img>
+          />
           <h1 className="text-2xl font-bold">Text Editor</h1>
         </div>
-        <div className="flex items-center space-x-3">
+        {/* Right: Avatars, End Session, Theme, Save */}
+        <div className="flex items-center space-x-4">
+          {/* Avatars */}
+          <div className="flex items-center space-x-2">
+            {viewers.slice(0, 3).map((user, idx) => (
+              <span
+                key={idx}
+                className="inline-block w-8 h-8 rounded-full border-2 border-black bg-blue-400 flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: user?.color || '#60a5fa' }}
+                title={user?.name || 'Anonymous'}
+              >
+                {(user?.name || 'A').substring(0, 1).toUpperCase()}
+              </span>
+            ))}
+            {viewers.length > 3 && (
+              <span className="inline-block w-8 h-8 rounded-full border-2 border-black bg-gray-200 flex items-center justify-center text-xs font-bold">
+                +{viewers.length - 3}
+              </span>
+            )}
+          </div>
+          {/* End Session Button */}
+          <button
+            className="px-4 py-1 border-2 border-red-600 text-red-600 rounded bg-white font-semibold hover:bg-red-50 transition"
+            onClick={() => {
+              // End session logic
+              window.location.href = '/';
+            }}
+          >
+            END SESSION
+          </button>
+          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className={`p-2 rounded-lg transition-colors ${buttonClasses}`}
@@ -308,6 +354,7 @@ const RichTextEditor = () => {
           >
             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
+          {/* Save Button */}
           <button
             onClick={() => setOpen(!open)}
             className={`p-2 rounded-lg transition-colors ${buttonClasses}`}
