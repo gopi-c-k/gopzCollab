@@ -110,6 +110,12 @@ button:hover {
     white-space: nowrap;
   }
 
+  .collaboration-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+  }
+
   /* Table-specific styling */
   table {
     border-collapse: collapse;

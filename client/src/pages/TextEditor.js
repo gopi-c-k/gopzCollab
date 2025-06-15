@@ -5,7 +5,7 @@ import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import BulletList from '@tiptap/extension-bullet-list'
 import Document from '@tiptap/extension-document'
-import ListItem from '@tiptap/extension-list-item'
+import ListItem from '@tiptap/extension-list-item';
 import htmlDocx from 'html-docx-js/dist/html-docx';
 import html2pdf from 'html2pdf.js';
 import OrderedList from '@tiptap/extension-ordered-list'
@@ -38,8 +38,108 @@ import {
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
+import { db } from '../firebase';
+import { collection, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { Awareness } from 'y-protocols/awareness';
+import { FirebaseYProvider } from '../components/collaboration-service'
 
-const RichTextEditor = () => {
+// Helper function to convert Uint8Array to Base64
+const uint8ArrayToBase64 = (buffer) => {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+};
+
+// Helper function to convert Base64 to Uint8Array
+const base64ToUint8Array = (base64) => {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+};
+
+// Firebase Provider Implementation
+const createFirebaseProvider = ({ ydoc, roomId }) => {
+  const awareness = new Awareness(ydoc);
+  const docRef = doc(db, 'collaboration', roomId);
+
+  const initializeDoc = async () => {
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.content) {
+        const update = base64ToUint8Array(data.content);
+        Y.applyUpdate(ydoc, update, 'firestore-init'); // <- apply full initial state
+      }
+    } else {
+      // First time init
+      await setDoc(docRef, {
+        content: uint8ArrayToBase64(Y.encodeStateAsUpdate(ydoc)),
+        lastUpdated: new Date().toISOString()
+      });
+    }
+  };
+
+  const syncDoc = async () => {
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data?.content) {
+        const fullState = base64ToUint8Array(data.content);
+        Y.applyUpdate(ydoc, fullState, 'firestore-initial');
+      }
+    }
+
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data?.content) {
+          const update = base64ToUint8Array(data.content);
+          Y.applyUpdate(ydoc, update, 'firestore');
+        }
+      }
+    });
+    const updateHandler = (update, origin) => {
+      if (!['firestore', 'firestore-initial'].includes(origin)) {
+        setDoc(docRef, {
+          content: uint8ArrayToBase64(Y.encodeStateAsUpdate(ydoc)),
+          lastUpdated: new Date().toISOString(),
+        }, { merge: true }).catch(console.error);
+      }
+    };
+
+    ydoc.on('update', updateHandler);
+
+    return () => {
+      unsubscribe();
+      ydoc.off('update', updateHandler);
+    };
+  };
+
+  // Return after init
+  initializeDoc().then(syncDoc);
+
+  return {
+    ydoc,
+    awareness,
+    destroy: () => {
+      // Remove listeners if needed
+      ydoc.destroy();
+    },
+    // Needed for tiptap cursor
+    awareness: awareness, // ✅ already there
+  };
+};
+
+
+const RichTextEditor = ({ sessionData }) => {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -47,12 +147,75 @@ const RichTextEditor = () => {
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
   const [viewers, setViewers] = useState([]);
-  const ydoc = useMemo(() => new Y.Doc(), [])
-  const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
-    [ydoc]
-  )
 
+  const [isLeader, setIsLeader] = useState(false);
+  const sessionId = sessionData?.sessionId || 'default-session';
+  const userName = sessionData?.userName || 'Anonymous';
+  const avatar = sessionData?.avatar || 'https://www.gravatar.com/avatar/';
+
+  const provider = useMemo(() => {
+    const ydoc = new Y.Doc();
+    const firebaseProvider = createFirebaseProvider({
+      ydoc,
+      roomId: sessionId
+    });
+    return firebaseProvider;
+  }, [sessionId]);
+
+  const { ydoc, awareness } = provider;
+
+
+  // Set up awareness and leader election
+  useEffect(() => {
+    if (!awareness) return;
+
+    // Set initial user state
+    provider.awareness.setLocalStateField('user', {
+      name: localStorage.getItem('userName') || 'Anonymous',
+      color: localStorage.getItem('userColor') || '#60a5fa',
+    });
+
+
+    const handleChange = () => {
+      const states = awareness.getStates();
+      const clientIds = Array.from(states.keys());
+
+      if (clientIds.length > 0) {
+        const leaderId = Math.min(...clientIds);
+        setIsLeader(awareness.clientID === leaderId);
+        setViewers(Array.from(states.values()));
+      }
+    };
+
+    awareness.on('change', handleChange);
+    handleChange(); // Initial call
+
+    return () => {
+      awareness.off('change', handleChange);
+    };
+  }, [awareness, userName, avatar]);
+
+
+
+  // Leader election logic
+  // useEffect(() => {
+  //   if (!awareness) return;
+
+  //   const handleChange = () => {
+  //     const clientIds = Array.from(awareness.getStates().keys());
+  //     const leaderId = Math.min(...clientIds);
+  //     const isLeader = awareness.clientID === leaderId;
+  //     setIsLeader(isLeader);
+  //     setViewers([...awareness.getStates().values()]);
+  //   };
+
+  //   awareness.on('change', handleChange);
+  //   handleChange(); // call once initially
+
+  //   return () => {
+  //     awareness.off('change', handleChange);
+  //   };
+  // }, [awareness]);
 
   const themeClasses = isDarkMode
     ? 'bg-gray-900 text-white'
@@ -204,7 +367,35 @@ const RichTextEditor = () => {
           name: localStorage.getItem('userName') || 'Anonymous',
           color: localStorage.getItem('userColor') || '#60a5fa',
         },
+        render: user => {
+          const cursor = document.createElement('span');
+          cursor.classList.add('cursor');
+          cursor.style.borderLeft = `2px solid ${user.color}`;
+          cursor.style.marginLeft = '-1px';
+          cursor.style.height = '1em';
+          cursor.style.display = 'inline-block';
+
+          const label = document.createElement('div');
+          label.classList.add('cursor-label');
+          label.style.position = 'absolute';
+          label.style.top = '-1.2em';
+          label.style.left = '0';
+          label.style.backgroundColor = user.color;
+          label.style.color = 'white';
+          label.style.padding = '0 4px';
+          label.style.fontSize = '12px';
+          label.style.borderRadius = '4px';
+          label.textContent = user.name;
+
+          const container = document.createElement('div');
+          container.appendChild(cursor);
+          container.appendChild(label);
+          container.style.position = 'relative';
+
+          return container;
+        }
       }),
+
     ],
     content: `<p>Type your text here...</p>`,
     onUpdate: ({ editor }) => {
@@ -212,7 +403,7 @@ const RichTextEditor = () => {
       setWordCount(text.trim().split(/\s+/).filter(word => word.length > 0).length)
       setCharCount(text.length)
     },
-  })
+  }, [ydoc, awareness, userName])
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode)
@@ -283,18 +474,19 @@ const RichTextEditor = () => {
   }, [editor])
 
   // Track connected users
-  useEffect(() => {
-    const awarenessListener = () => {
-      const states = Array.from(provider.awareness.getStates().values());
-      setViewers(states.map(state => state.user));
-    };
-    provider.awareness.on('change', awarenessListener);
-    // Initial set
-    awarenessListener();
-    return () => {
-      provider.awareness.off('change', awarenessListener);
-    };
-  }, [provider]);
+  // useEffect(() => {
+  //   const awarenessListener = () => {
+  //     const states = Array.from(provider.awareness.getStates().values());
+  //     setViewers(states.map(state => state.user));
+  //   };
+  //   provider.awareness.on('change', awarenessListener);
+  //   // Initial set
+  //   awarenessListener();
+  //   return () => {
+  //     provider.awareness.off('change', awarenessListener);
+  //   };
+  // }, [provider]);
+
 
   if (!editor) {
     return null
@@ -846,6 +1038,23 @@ const RichTextEditor = () => {
       <div className={`border rounded-lg p-6 min-h-96 shadow-lg transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${editorClasses}`}>
         <EditorContent editor={editor} />
       </div>
+      {viewers.map((viewer, idx) => (
+        <div key={idx} className="flex items-center space-x-2">
+          <img
+            src={viewer.user?.avatar || 'https://www.gravatar.com/avatar/'}
+            alt={viewer.user?.name || 'Anonymous'}
+            className="w-6 h-6 rounded-full border"
+            style={{ borderColor: viewer.user?.color || '#ccc' }}
+          />
+          <span
+            className="text-sm"
+            style={{ color: viewer.user?.color || '#ccc' }}
+          >
+            {viewer.user?.name || 'Anonymous'}
+          </span>
+        </div>
+      ))}
+
 
       {/* Status Bar */}
       <div className={`mt-4 p-3 text-sm rounded-lg flex justify-between items-center ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
@@ -873,6 +1082,7 @@ const RichTextEditor = () => {
           </div>
         </details>
       </div>
+
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div
