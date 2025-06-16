@@ -2,7 +2,7 @@
   "name": "y-websocket",
   "version": "1.0.0",
   "scripts": {
-    "start": "HOST=localhost PORT=1234 npx y-websocket"
+    "start": "npx y-websocket"
   },
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
