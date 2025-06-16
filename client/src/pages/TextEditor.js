@@ -49,9 +49,10 @@ const RichTextEditor = () => {
   const [viewers, setViewers] = useState([]);
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', 'your-room-name', ydoc),
+    () => new WebsocketProvider(process.env.REACT_APP_SOCKET_URL, 'your-room-name', ydoc),
     [ydoc]
   )
+
 
 
   const themeClasses = isDarkMode
