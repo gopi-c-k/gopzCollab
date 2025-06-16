@@ -1,12 +1,14 @@
 {
   "name": "y-websocket",
   "version": "1.0.0",
+  "type": "module",  
   "scripts": {
-    "start": "cross-env PORT=$PORT npx y-websocket --host 0.0.0.0"
+    "start": "node server.js"
   },
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.5.0",
     "ws": "^8.18.2",
     "y-websocket": "^3.0.0"
   }
