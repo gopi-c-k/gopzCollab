@@ -2,10 +2,11 @@
   "name": "y-websocket",
   "version": "1.0.0",
   "scripts": {
-    "start": "npx y-websocket"
+    "start": "cross-env PORT=$PORT npx y-websocket"
   },
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
+    "cross-env": "^7.0.3",
     "ws": "^8.18.2",
     "y-websocket": "^3.0.0"
   }
