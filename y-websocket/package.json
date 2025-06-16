@@ -1,12 +1,12 @@
 {
-  "name": "y-websocket-server",
+  "name": "y-websocket",
   "version": "1.0.0",
-  "type": "module",
-  "main": "y-websocket-server.js",
   "scripts": {
-    "start": "node y-websocket-server.js"
+    "start": "HOST=localhost PORT=1234 npx y-websocket"
   },
   "dependencies": {
+    "@y/websocket-server": "^0.1.1",
+    "ws": "^8.18.2",
     "y-websocket": "^3.0.0"
   }
 }
