@@ -19,6 +19,7 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +35,7 @@ function SignIn() {
       setErrorMessage("Enter both email and password.");
       return;
     }
+    setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -42,29 +44,38 @@ function SignIn() {
         await sendEmailVerification(user);
         setErrorMessage("Email not verified. A new verification link was sent.");
         await signOut(auth);
+        setLoading(false);
       } else {
         const res = await axiosInstance.post("/user/create");
         if (res.status === 200 || res.status === 201) {
           await storeFirebaseToken();
+          setLoading(false);
           navigate("/home");
         }
+        setLoading(false);
 
       }
 
     } catch (error) {
+      setLoading(false);
       setErrorMessage(error.message);
     }
   };
   const handleGoogleSignIn = async () => {
     setErrorMessage("");
+    setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
+
       const res = await axiosInstance.post("/user/create");
       if (res.status === 200 || res.status === 201) {
+        setLoading(false);
         await storeFirebaseToken();
         navigate("/home");
       }
+      setLoading(false);
     } catch (error) {
+      setLoading(false);
       setErrorMessage(error.message);
     }
   };
@@ -153,6 +164,9 @@ function SignIn() {
           </button>
         </div>
       </div>
+      {loading && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+      </div>)}
     </div>
 
   );

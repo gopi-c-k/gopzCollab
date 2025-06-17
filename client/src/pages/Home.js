@@ -24,7 +24,7 @@ const Home = () => {
   // For room details
   const [roomDetailsLoading, setRoomDetailsLoading] = useState(false);
   const [roomDetails, setRoomDetails] = useState(null);
-  const [roomEditorLoading,setRoomEditorLoading] = useState(false);
+  const [roomEditorLoading, setRoomEditorLoading] = useState(false);
 
   // For deleting rooms
   const [deleteRoomLoading, setDeleteRoomLoading] = useState(false);
@@ -307,7 +307,11 @@ const Home = () => {
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6 border-b-2 border-blue-500">
-        <img src={`${process.env.PUBLIC_URL}/assets/images/Logo.png" alt="Logo" className="h-10 mb-2`} />
+        <img
+          src={`${process.env.PUBLIC_URL}/assets/images/Logo.png`}
+          alt="Logo"
+          className="h-10 mb-2"
+        />
 
         <div className="flex items-center space-x-4 mb-2">
           <button
@@ -686,8 +690,8 @@ const Home = () => {
       )}
       {roomEditorLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
-          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+        </div>
       )}
       {showSnackbar && (
         <Notification
