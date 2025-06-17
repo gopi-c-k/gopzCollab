@@ -1,12 +1,16 @@
 const Document = require('../../models/document');
 const CollabSession = require('../../models/collabSession');
 const Notification = require('../../models/notification');
+const User = require('../../models/user')
 
 const createOrJoinDocumentSession = async (req, res) => {
-  const { documentId } = req.body;
+  const { documentId } = req.params;
 
   try {
     const document = req.locals?.document || await Document.findById(documentId).populate('owner collaborators');
+    const user = await User.findOne({email:req.user.email})
+    req.locals = req.locals || {};
+    req.locals.user = user;
 
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
@@ -80,6 +84,8 @@ const createOrJoinDocumentSession = async (req, res) => {
       message: isNewSession ? 'New session created' : 'Joined existing session',
       session_id: session._id,
       name: req.locals.user.name,
+      userId: req.locals.user._id,
+      isNewSession,
       profilePic: req.locals.user.profilePic
     };
 

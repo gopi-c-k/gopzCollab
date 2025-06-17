@@ -39,13 +39,13 @@ wss.on('connection', (conn, req) => {
         const xmlFragment = ydoc.getXmlFragment(field);
         const xmlContent = xmlFragment.toString();
         if (xmlContent) return { type: 'xml', content: xmlContent };
-      } catch {}
+      } catch { }
 
       try {
         const ytext = ydoc.getText(field);
         const textContent = ytext.toString();
         if (textContent) return { type: 'text', content: textContent };
-      } catch {}
+      } catch { }
 
       const availableTypes = Array.from(ydoc.share.keys());
       return {
@@ -77,6 +77,12 @@ wss.on('connection', (conn, req) => {
               console.log(`✅ Final content saved for room ${room}:`, response.data);
             } catch (error) {
               console.error(`❌ Failed to save content for room ${room}:`, error.message);
+            }
+            try {
+              const response = await axios.post(`${process.env.BACKEND_URL}/session/end/${room}`)
+              console.log("Session activity save and dead", response.data);
+            } catch (error) {
+              console.error(`❌ Failed to dead the session ${room}:`, error.message);
             }
           } else {
             console.log(`ℹ️ No content to save for room ${room}.`);

@@ -6,7 +6,7 @@ const endDocumentSession = async (req, res) => {
   const { documentId } = req.body;
 
   try {
-    const document = await Document.findById(documentId).populate('owner collaborators');
+    const document = await Document.findById(documentId);
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
@@ -15,14 +15,13 @@ const endDocumentSession = async (req, res) => {
       return res.status(400).json({ message: 'No active session to end.' });
     }
 
-    const session = res.locals.session || await CollabSession.findById(document.activeSession);
+    const session = await CollabSession.findById(document.activeSession);
     if (!session || !session.isLive) {
       return res.status(400).json({ message: 'Session is already inactive or missing.' });
     }
 
     session.isLive = false;
     await session.save();
-    await CollabSession.deleteOne({ _id: session._id });
 
     document.activeSession = undefined;
     await document.save();

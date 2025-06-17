@@ -15,7 +15,7 @@ function App() {
         <Route path="/signup" element={<SignUp/>} />
         <Route path="/home" element={<Home/>} />
         <Route path='/notification' element={<Notification/>} />
-        <Route path="/editor/:documentId" element={<TextEditor/>} />
+        <Route path="/editor" element={<TextEditor/>} />
       </Routes>
     </Router>
   );

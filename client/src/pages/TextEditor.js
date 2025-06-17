@@ -38,8 +38,13 @@ import {
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
+import { useLocation } from 'react-router-dom';
 
 const RichTextEditor = () => {
+  const location = useLocation();
+  const { session } = location.state || {};
+  const { name, profilePic, session_id, userId } = session;
+  console.log(session);
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -47,13 +52,42 @@ const RichTextEditor = () => {
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
   const [viewers, setViewers] = useState([]);
+
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider(process.env.REACT_APP_SOCKET_URL, 'your-room', ydoc),
+    () => new WebsocketProvider(process.env.REACT_APP_SOCKET_URL, session_id, ydoc),
     [ydoc]
   )
 
+  const colors = [
+    '#958DF1',
+    '#F98181',
+    '#FBBC88',
+    '#FAF594',
+    '#70CFF8',
+    '#94FADB',
+    '#B9F18D',
+    '#C3E2C2',
+    '#EAECCC',
+    '#AFC8AD',
+    '#EEC759',
+    '#9BB8CD',
+    '#FF90BC',
+    '#FFC0D9',
+    '#DC8686',
+    '#7ED7C1',
+    '#F3EEEA',
+    '#89B9AD',
+    '#D0BFFF',
+    '#FFF8C9',
+    '#CBFFA9',
+    '#9BABB8',
+    '#E3F4F4',
+  ]
 
+  const getRandomElement = list => list[Math.floor(Math.random() * list.length)]
+
+  const getRandomColor = () => getRandomElement(colors)
 
   const themeClasses = isDarkMode
     ? 'bg-gray-900 text-white'
@@ -202,8 +236,9 @@ const RichTextEditor = () => {
       CollaborationCursor.configure({
         provider,
         user: {
-          name: localStorage.getItem('userName') || 'Anonymous',
-          color: localStorage.getItem('userColor') || '#60a5fa',
+          name: name,
+          color: getRandomColor(),
+          userId,
         },
       }),
     ],
@@ -214,6 +249,14 @@ const RichTextEditor = () => {
       setCharCount(text.length)
     },
   })
+
+  useEffect(() => {
+    // Only initialize if the document is empty
+    if (editor && session.isNewSession) {
+      editor.commands.setContent(session.content);
+    }
+  }, [editor, ydoc])
+
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode)
@@ -287,10 +330,20 @@ const RichTextEditor = () => {
   useEffect(() => {
     const awarenessListener = () => {
       const states = Array.from(provider.awareness.getStates().values());
-      setViewers(states.map(state => state.user));
+
+      const uniqueUsersMap = new Map();
+
+      states.forEach(({ user }) => {
+        if (user && user.userId) {
+          uniqueUsersMap.set(user.userId, user);
+        }
+      });
+
+      setViewers(Array.from(uniqueUsersMap.values()));
     };
+
+
     provider.awareness.on('change', awarenessListener);
-    // Initial set
     awarenessListener();
     return () => {
       provider.awareness.off('change', awarenessListener);
@@ -301,7 +354,11 @@ const RichTextEditor = () => {
     return null
   }
 
-
+  if (!session) {
+    return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+    </div>);
+  }
 
   return (
     <div className={`min-h-screen p-6 transition-all duration-300 ${themeClasses}`}>
@@ -342,7 +399,7 @@ const RichTextEditor = () => {
             className="px-4 py-1 border-2 border-red-600 text-red-600 rounded bg-white font-semibold hover:bg-red-50 transition"
             onClick={() => {
               // End session logic
-              window.location.href = '/';
+              window.location.href = '/home';
             }}
           >
             END SESSION

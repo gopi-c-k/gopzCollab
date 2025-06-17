@@ -24,6 +24,7 @@ const Home = () => {
   // For room details
   const [roomDetailsLoading, setRoomDetailsLoading] = useState(false);
   const [roomDetails, setRoomDetails] = useState(null);
+  const [roomEditorLoading,setRoomEditorLoading] = useState(false);
 
   // For deleting rooms
   const [deleteRoomLoading, setDeleteRoomLoading] = useState(false);
@@ -157,7 +158,27 @@ const Home = () => {
   }
 
   const handleRoomClick = async (room) => {
-    // Implement navigation or logic for room click
+    if (room.type === 'text') {
+      setRoomEditorLoading(true);
+      try {
+        const res = await axiosInstance.post(`/session/create-or-join/${room._id}`);
+        if (res.status === 200) {
+          setRoomEditorLoading(false);
+          const session = res.data;
+          navigate('/editor', {
+            state: {
+              session
+            }
+          });
+        }
+      } catch (error) {
+        setRoomEditorLoading(false);
+        setSnackbarMessage('Error while joining the room!');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
+      }
+    }
   };
 
   const handleDetailsClick = async (room) => {
@@ -663,7 +684,11 @@ const Home = () => {
           </div>
         </div>
       )}
-
+      {roomEditorLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+          </div>
+      )}
       {showSnackbar && (
         <Notification
           message={snackbarMessage}
