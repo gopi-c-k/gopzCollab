@@ -1,12 +1,13 @@
 {
   "name": "y-websocket",
   "version": "1.0.0",
-  "type": "module",  
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
+    "axios": "^1.10.0",
     "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
     "ws": "^8.18.2",

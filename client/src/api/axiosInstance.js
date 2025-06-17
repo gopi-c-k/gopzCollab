@@ -3,7 +3,7 @@ import { auth } from "../firebase"; // adjust the path if needed
 
 // Create Axios instance
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:5000", // Update for production
+  baseURL: process.env.REACT_APP_BACKEND_URL, // Update for production
   withCredentials: true,
 });
 

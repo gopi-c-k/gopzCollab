@@ -1,76 +1,92 @@
-import dotenv from 'dotenv'
-dotenv.config()
+import dotenv from 'dotenv';
+dotenv.config();
 
-import { setupWSConnection, docs } from '@y/websocket-server/utils'
-import { WebSocketServer } from 'ws'
-import http from 'http'
-import * as Y from 'yjs'
+import { setupWSConnection, docs } from '@y/websocket-server/utils';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import axios from 'axios';
 
-const port = parseInt(process.env.PORT) || 1234
+const port = parseInt(process.env.PORT) || 1234;
 const server = http.createServer((req, res) => {
-    res.writeHead(200)
-    res.end('WebSocket server running\n')
-})
+  res.writeHead(200);
+  res.end('WebSocket server running\n');
+});
 
 const wss = new WebSocketServer({ server });
 const roomUsersMap = new Map();
 
 wss.on('connection', (conn, req) => {
-    const url = new URL(req.url || '', `http://${req.headers.host}`)
-    const room = url.pathname.slice(1) || 'default-room'
-    const params = url.searchParams
-    const field = params.get('field') || 'default';
-    setupWSConnection(conn, req, { docName: room })
-    const ydoc = docs.get(room);
-    if (!roomUsersMap.has(room)) {
-        roomUsersMap.set(room, new Set());
-    }
-    roomUsersMap.get(room).add(conn);
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const room = url.pathname.slice(1) || 'default-room';
+  const params = url.searchParams;
+  const field = params.get('field') || 'default';
 
-    if (ydoc) {
-        const getContent = () => {
+  console.log(`New connection: room=${room}, field=${field}`);
+
+  setupWSConnection(conn, req, { docName: room });
+
+  const ydoc = docs.get(room);
+
+  if (!roomUsersMap.has(room)) {
+    roomUsersMap.set(room, new Set());
+  }
+
+  roomUsersMap.get(room).add(conn);
+
+  if (ydoc) {
+    const getContent = () => {
+      try {
+        const xmlFragment = ydoc.getXmlFragment(field);
+        const xmlContent = xmlFragment.toString();
+        if (xmlContent) return { type: 'xml', content: xmlContent };
+      } catch {}
+
+      try {
+        const ytext = ydoc.getText(field);
+        const textContent = ytext.toString();
+        if (textContent) return { type: 'text', content: textContent };
+      } catch {}
+
+      const availableTypes = Array.from(ydoc.share.keys());
+      return {
+        type: 'unknown',
+        availableTypes,
+        message: 'Could not extract content from document',
+      };
+    };
+
+    conn.on('close', async () => {
+      const roomUsers = roomUsersMap.get(room);
+
+      if (roomUsers) {
+        roomUsers.delete(conn);
+
+        if (roomUsers.size === 0) {
+          roomUsersMap.delete(room);
+          const finalContent = getContent();
+
+          if (finalContent?.content) {
             try {
-                try {
-                    const xmlFragment = ydoc.getXmlFragment(field)
-                    const xmlContent = xmlFragment.toString()
-                    if (xmlContent) return { type: 'xml', content: xmlContent }
-                } catch { }
-                try {
-                    const ytext = ydoc.getText(field)
-                    const textContent = ytext.toString()
-                    if (textContent) return { type: 'text', content: textContent }
-                } catch { }
-                const availableTypes = Array.from(ydoc.share.keys())
-                return {
-                    type: 'unknown',
-                    availableTypes,
-                    message: 'Content not found in specified field, checking all types...'
+              const response = await axios.patch(
+                `${process.env.BACKEND_URL}/room/content/update`,
+                {
+                  sessionId: room,
+                  content: finalContent.content,
                 }
-            } catch (err) {
-                return { type: 'error', message: err.message }
+              );
+              console.log(`✅ Final content saved for room ${room}:`, response.data);
+            } catch (error) {
+              console.error(`❌ Failed to save content for room ${room}:`, error.message);
             }
+          } else {
+            console.log(`ℹ️ No content to save for room ${room}.`);
+          }
         }
-        conn.on('close', async () => {
-            const roomUsers = roomUsersMap.get(room);
-            if (roomUsers) {
-                roomUsers.delete(conn);
-                if (roomUsers.size === 0) {
-                    roomUsersMap.delete(room); // optional cleanup
-                    const finalContent = getContent();
-                  //  console.log(`🛑 All users left room "${room}", field "${field}". Final content:`, finalContent);
-                    saveContent(room, field, finalContent);
-                }
-            }
-        })
-    }
-})
+      }
+    });
+  }
+});
 
 server.listen(port, '0.0.0.0', () => {
-    console.log(`✅ Server running at 0.0.0.0:${port}`)
-})
-
-// Example save function
-async function saveContent(room, field, content) {
-    console.log(`Saving content for room ${room}, field ${field}:`, content.content);
-    // Implement your database saving logic here
-}
+  console.log(`✅ WebSocket Server running at http://0.0.0.0:${port}`);
+});
