@@ -1,5 +1,6 @@
 // const admin = require("firebase-admin");
 const admin = require('./../firebase');
+const User = require('../models/user');
 
 // Firebase Auth Middleware
 const verifyToken = async (req, res, next) => {
@@ -20,6 +21,8 @@ const verifyToken = async (req, res, next) => {
             profilePic: decodedToken.picture || "",
             provider: decodedToken.firebase?.sign_in_provider || "unknown"
         };
+        const user = await User.findOne({ email: req.user.email });
+        req.locals.user = user;
         next();
     } catch (error) {
         console.log(error);

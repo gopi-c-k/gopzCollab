@@ -24,8 +24,8 @@ const createOrJoinDocumentSession = async (req, res) => {
     if (!session) {
       session = new CollabSession({
         docId: document._id,
-        creator: req.user._id,
-        participants: [req.user._id],
+        creator: req.locals.user._id,
+        participants: [req.locals.user._id],
       });
 
       await session.save();
@@ -38,27 +38,27 @@ const createOrJoinDocumentSession = async (req, res) => {
       // Create notifications for owner and collaborators (excluding current user)
       const notifications = [];
 
-      if (document.owner._id.toString() !== req.user._id.toString()) {
+      if (document.owner._id.toString() !== req.locals.user._id.toString()) {
         notifications.push(
           new Notification({
             user: document.owner._id,
             type: 'SESSION_STARTED',
             document: document._id,
-            sender: req.user._id,
-            message: `A new collaboration session has been created for your document "${document.title}" by "${req.user.name}".`,
+            sender: req.locals.user._id,
+            message: `A new collaboration session has been created for your document "${document.title}" by "${req.locals.user.name}".`,
           })
         );
       }
 
       document.collaborators.forEach((collaborator) => {
-        if (collaborator._id.toString() !== req.user._id.toString()) {
+        if (collaborator._id.toString() !== req.locals.user._id.toString()) {
           notifications.push(
             new Notification({
               user: collaborator._id,
               type: 'SESSION_STARTED',
               document: document._id,
-              sender: req.user._id,
-              message: `A new collaboration session has been created for the document "${document.title}" by "${req.user.name}" you are collaborating on.`,
+              sender: req.locals.user._id,
+              message: `A new collaboration session has been created for the document "${document.title}" by "${req.locals.user.name}" you are collaborating on.`,
             })
           );
         }
@@ -69,8 +69,8 @@ const createOrJoinDocumentSession = async (req, res) => {
       }
     } else {
       // If already part of the session, just rejoin
-      if (!session.participants.includes(req.user._id)) {
-        session.participants.push(req.user._id);
+      if (!session.participants.includes(req.locals.user._id)) {
+        session.participants.push(req.locals.user._id);
         await session.save();
       }
     }
@@ -79,6 +79,8 @@ const createOrJoinDocumentSession = async (req, res) => {
       success: true,
       message: isNewSession ? 'New session created' : 'Joined existing session',
       session_id: session._id,
+      name: req.locals.user.name,
+      profilePic: req.locals.user.profilePic
     };
 
     if (isNewSession) {
