@@ -307,7 +307,7 @@ const Home = () => {
     <div className="min-h-screen bg-gray-100 p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6 border-b-2 border-blue-500">
-        <img src="/assets/Images/Logo.png" alt="Logo" className="h-10 mb-2" />
+        <img src={`${process.env.PUBLIC_URL}/assets/Images/Logo.png" alt="Logo" className="h-10 mb-2`} />
 
         <div className="flex items-center space-x-4 mb-2">
           <button
@@ -323,7 +323,7 @@ const Home = () => {
 
           <button className="bg-blue-600 text-white p-2 rounded-full">
             <img
-              src={profilePic || '/assets/Images/defaultProfilePic.png'}
+              src={profilePic || `${process.env.PUBLIC_URL}/assets/Images/defaultProfilePic.png`}
               alt="Profile"
               className="w-6 h-6 rounded-full"
             />
@@ -399,7 +399,7 @@ const Home = () => {
 
               <div className="w-full h-16 overflow-hidden border-t">
                 <img
-                  src={`/assets/Images/${room.type}Icon.png`}
+                  src={`${process.env.PUBLIC_URL}/assets/Images/${room.type}Icon.png`}
                   alt="Room Icon"
                   className="w-full h-full object-contain p-2"
                 />
@@ -461,7 +461,7 @@ const Home = () => {
 
               <div className="w-full h-16 overflow-hidden border-t">
                 <img
-                  src={`/assets/Images/${room.type}Icon.png`}
+                  src={`${process.env.PUBLIC_URL}/assets/Images/${room.type}Icon.png`}
                   alt="Room Icon"
                   className="w-full h-full object-contain p-2"
                 />
