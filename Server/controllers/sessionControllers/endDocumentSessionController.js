@@ -33,17 +33,14 @@ const endDocumentSession = async (req, res) => {
     ]);
 
     allUserIds.forEach((userId) => {
-      if (userId !== req.user._id.toString()) {
-        notifications.push(
-          new Notification({
-            user: userId,
-            type: 'SESSION_ENDED',
-            document: document._id,
-            sender: req.user._id,
-            message: `The collaboration session for "${document.title}" has been manually ended.`,
-          })
-        );
-      }
+      notifications.push(
+        new Notification({
+          user: userId,
+          type: 'SESSION_ENDED',
+          document: document._id,
+          message: `The collaboration session for "${document.title}" has been manually ended.`,
+        })
+      );
     });
 
     if (notifications.length > 0) {

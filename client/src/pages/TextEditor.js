@@ -369,7 +369,7 @@ const RichTextEditor = () => {
           <FileText className="w-8 h-8 text-blue-500" />
           <img
             alt="Logo"
-            src="/assets/Images/Logo.png"
+            src={`${process.env.PUBLIC_URL}/assets/images/Logo.png`}
             className='w-44'
           />
           <h1 className="text-2xl font-bold">Text Editor</h1>
