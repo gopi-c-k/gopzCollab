@@ -2,67 +2,25 @@ const Document = require('../../models/document');
 const CollabSession = require('../../models/collabSession');
 const Notification = require('../../models/notification');
 
-const COLLAPSE_TIMEOUT = 1 * 60 * 1000;
-
 const createOrJoinDocumentSession = async (req, res) => {
   const { documentId } = req.body;
 
   try {
-    const document =
-      req.locals?.document ||
-      (await Document.findById(documentId).populate('owner collaborators'));
+    const document = req.locals?.document || await Document.findById(documentId).populate('owner collaborators');
 
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
 
     let session = null;
+    let isNewSession = false;
 
+    // Check if there's an active session
     if (document.activeSession) {
       session = await CollabSession.findById(document.activeSession);
     }
 
-    const now = Date.now();
-
-    if (
-      session &&
-      session.isLive &&
-      now - new Date(session.lastPing).getTime() > COLLAPSE_TIMEOUT
-    ) {
-      session.isLive = false;
-
-      const notifications = [];
-
-      const allToNotify = new Set([
-        document.owner._id.toString(),
-        ...document.collaborators.map((c) => c._id.toString()),
-      ]);
-
-      allToNotify.forEach((userId) => {
-        if (userId !== req.user._id.toString()) {
-          notifications.push(
-            new Notification({
-              user: userId,
-              type: 'SESSION_ENDED',
-              document: document._id,
-              sender: req.user._id,
-              message: `The collaboration session for the document "${document.title}" has ended due to inactivity.`,
-            })
-          );
-        }
-      });
-
-      if (notifications.length > 0) {
-        await Notification.insertMany(notifications);
-      }
-
-      await CollabSession.deleteOne({ _id: session._id });
-      document.activeSession = undefined;
-      await document.save();
-
-      session = null;
-    }
-
+    // Create a new session if not found
     if (!session) {
       session = new CollabSession({
         docId: document._id,
@@ -75,6 +33,9 @@ const createOrJoinDocumentSession = async (req, res) => {
       document.activeSession = session._id;
       await document.save();
 
+      isNewSession = true;
+
+      // Create notifications for owner and collaborators (excluding current user)
       const notifications = [];
 
       if (document.owner._id.toString() !== req.user._id.toString()) {
@@ -107,19 +68,24 @@ const createOrJoinDocumentSession = async (req, res) => {
         await Notification.insertMany(notifications);
       }
     } else {
+      // If already part of the session, just rejoin
       if (!session.participants.includes(req.user._id)) {
         session.participants.push(req.user._id);
+        await session.save();
       }
-
-      session.lastPing = new Date();
-      await session.save();
     }
 
-    return res.status(200).json({
+    const responsePayload = {
       success: true,
-      message: 'Session is active',
-      session,
-    });
+      message: isNewSession ? 'New session created' : 'Joined existing session',
+      session_id: session._id,
+    };
+
+    if (isNewSession) {
+      responsePayload.content = document.content;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (err) {
     console.error('Error in createOrJoinDocumentSession:', err);
     return res.status(500).json({ message: 'Internal server error' });
