@@ -3,10 +3,14 @@ const CollabSession = require('../../models/collabSession');
 const Notification = require('../../models/notification');
 
 const endDocumentSession = async (req, res) => {
-  const { documentId } = req.body;
+  const { sessionId } = req.params;
 
   try {
-    const document = await Document.findById(documentId);
+    const session = await CollabSession.findById(sessionId);
+    if (!session || !session.isLive) {
+      return res.status(400).json({ message: 'Session is already inactive or missing.' });
+    }
+    const document = await Document.findById(session.docId);
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
@@ -14,12 +18,6 @@ const endDocumentSession = async (req, res) => {
     if (!document.activeSession) {
       return res.status(400).json({ message: 'No active session to end.' });
     }
-
-    const session = await CollabSession.findById(document.activeSession);
-    if (!session || !session.isLive) {
-      return res.status(400).json({ message: 'Session is already inactive or missing.' });
-    }
-
     session.isLive = false;
     await session.save();
 

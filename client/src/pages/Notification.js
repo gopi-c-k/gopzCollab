@@ -103,7 +103,7 @@ function Notification() {
                     <button onClick={() => navigate('/home')} className="text-blue-600 hover:text-blue-800">
                         <ArrowLeft />
                     </button>
-                    <img src={`${process.env.PUBLIC_URL}/assets/Images/Logo.png`} alt="Logo" className="h-10" />
+                    <img src={`${process.env.PUBLIC_URL}/assets/images/Logo.png`} alt="Logo" className="h-10" />
                 </div>
                 <div className="flex items-center space-x-4 mb-2">
                     <button className="relative bg-yellow-400 text-white p-2 rounded-full">

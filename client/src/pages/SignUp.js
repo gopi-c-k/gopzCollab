@@ -94,7 +94,7 @@ function SignUp({ prefersDarkMode }) {
                 <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
                     <div className="flex justify-center mb-4">
                         <img
-                            src="/assets/Images/Logo.png"
+                            src={`${process.env.PUBLIC_URL}/assets/images/Logo.png`}
                             alt="Logo"
                             className="w-48"
                         />
