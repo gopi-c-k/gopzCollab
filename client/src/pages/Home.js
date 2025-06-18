@@ -41,17 +41,34 @@ const Home = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
+      setRoomEditorLoading(true);
       try {
-        // Fetch user data from the server
         const response = await axiosInstance('/user/fetch');
-        const data = response.data;
-        setUserName(data.name);
-        setProfilePic(data.profilePic);
-        setCreatedRooms(data.createdRooms);
-        setJoinedRooms(data.joinedRooms);
-        setNotificationsCount(data.notificationsCount);
+        if (response.status === 200) {
+          const data = response.data;
+          setUserName(data.name);
+          setProfilePic(data.profilePic);
+          setCreatedRooms(data.createdRooms);
+          setJoinedRooms(data.joinedRooms);
+          setNotificationsCount(data.notificationsCount);
+          setRoomEditorLoading(false);
+        } else {
+          setSnackbarMessage('Please try to Sign In again');
+          setSnackbarType('error');
+          setShowSnackbar(true);
+          setTimeout(() => {
+            setShowSnackbar(false); setRoomEditorLoading(false);
+            navigate('/signin');
+          }, 3000);
+        }
       } catch (error) {
-        navigate('/signin');
+        setSnackbarMessage('Please try to Sign In again');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => {
+          setShowSnackbar(false); setRoomEditorLoading(false);
+          navigate('/signin');
+        }, 3000);
         console.error('Error fetching user data:', error);
       }
     }

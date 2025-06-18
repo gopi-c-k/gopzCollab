@@ -44,7 +44,6 @@ const RichTextEditor = () => {
   const location = useLocation();
   const { session } = location.state || {};
   const { name, profilePic, session_id, userId } = session;
-  console.log(session);
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [wordCount, setWordCount] = useState(0)
@@ -58,7 +57,6 @@ const RichTextEditor = () => {
     () => new WebsocketProvider(process.env.REACT_APP_SOCKET_URL, session_id, ydoc),
     [ydoc]
   )
-
   const colors = [
     '#958DF1',
     '#F98181',
@@ -238,6 +236,7 @@ const RichTextEditor = () => {
         user: {
           name: name,
           color: getRandomColor(),
+          avatar: profilePic,
           userId,
         },
       }),
@@ -374,31 +373,35 @@ const RichTextEditor = () => {
           />
           <h1 className="text-2xl font-bold">Text Editor</h1>
         </div>
-        {/* Right: Avatars, End Session, Theme, Save */}
         <div className="flex items-center space-x-4">
-          {/* Avatars */}
           <div className="flex items-center space-x-2">
-            {viewers.slice(0, 3).map((user, idx) => (
+            {viewers.map((user, idx) => (
               <span
                 key={idx}
-                className="inline-block w-8 h-8 rounded-full border-2 border-black bg-blue-400 flex items-center justify-center text-xs font-bold"
-                style={{ backgroundColor: user?.color || '#60a5fa' }}
+                className="inline-block w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold overflow-hidden"
+                style={{ borderColor: user?.color || 'black' }}
                 title={user?.name || 'Anonymous'}
               >
-                {(user?.name || 'A').substring(0, 1).toUpperCase()}
+                <img
+                  src={user?.avatar || 'https://www.gravatar.com/avatar/?d=mp'}
+                  alt={user?.name || 'User Avatar'}
+                  className="w-full h-full object-cover rounded-full"
+                />
+                <span
+                  className="absolute bottom-0 right-0 w-2.5 h-2.5 border-2 rounded-full"
+                  style={{
+                    backgroundColor: user.color || 'green',
+                    borderColor: user.color || 'white',
+                  }}
+                ></span>
               </span>
             ))}
-            {viewers.length > 3 && (
-              <span className="inline-block w-8 h-8 rounded-full border-2 border-black bg-gray-200 flex items-center justify-center text-xs font-bold">
-                +{viewers.length - 3}
-              </span>
-            )}
+
           </div>
           {/* End Session Button */}
           <button
-            className="px-4 py-1 border-2 border-red-600 text-red-600 rounded bg-white font-semibold hover:bg-red-50 transition"
+            className={`px-4 py-1 border-2 ${buttonClasses} border-red-600 text-red-600 rounded font-semibold transition`}
             onClick={() => {
-              // End session logic
               window.location.href = '/home';
             }}
           >
