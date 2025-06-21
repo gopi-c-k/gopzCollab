@@ -6,6 +6,7 @@ import SignUp from './pages/SignUp';
 import Home from './pages/Home';
 import TextEditor from './pages/TextEditor';
 import Notification from './pages/Notification';
+import CanvasEditor from './pages/CanvasEditor';
 function App() {
   return (
     <Router>
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<Home/>} />
         <Route path='/notification' element={<Notification/>} />
         <Route path="/editor" element={<TextEditor/>} />
+        <Route path="/canvas/editor" element={<CanvasEditor/>} />
       </Routes>
     </Router>
   );
