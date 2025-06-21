@@ -62,6 +62,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+
 const AdvancedCanvasEditor = () => {
   const canvasRef = useRef(null);
   const [ctx, setCtx] = useState(null);
@@ -83,10 +84,13 @@ const AdvancedCanvasEditor = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [showLayersPanel, setShowLayersPanel] = useState(true);
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(true);
-  const [brushSize, setBrushSize] = useState(5);
+  const [brushSize, setBrushSize] = useState(10);
   const [canvasSize] = useState({ width: 1200, height: 800 });
   const [clipboard, setClipboard] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [lastX, setLastX] = useState(0);
+  const [lastY, setLastY] = useState(0);
+
 
   // Color presets
   const colorPresets = [
@@ -129,10 +133,28 @@ const AdvancedCanvasEditor = () => {
       drawGrid(context);
     }
     
-    // Draw all objects
-    objects.forEach(obj => {
-      drawObject(context, obj);
-    });
+    
+  objects.forEach(obj => {
+  context.save();
+
+  if (obj.type === 'eraser') {
+    // Set to erasing mode
+    context.globalCompositeOperation = 'destination-out';
+    context.strokeStyle = 'rgba(0,0,0,1)';
+  } else {
+    // Normal drawing mode
+    context.globalCompositeOperation = 'source-over';
+    context.strokeStyle = obj.stroke || '#000';
+    context.fillStyle = obj.fill || 'transparent';
+  }
+
+  drawObject(context, obj);
+
+  context.restore();
+});
+
+
+
     
     // Draw selection handles for selected object
     if (selectedObject) {
@@ -226,6 +248,25 @@ const AdvancedCanvasEditor = () => {
           context.stroke();
         }
         break;
+              case 'eraser':
+        if (obj.points && obj.points.length > 1) {
+          context.save();
+          context.beginPath();
+          context.moveTo(obj.points[0].x, obj.points[0].y);
+          for (let i = 1; i < obj.points.length; i++) {
+            context.lineTo(obj.points[i].x, obj.points[i].y);
+          }
+          context.strokeStyle = 'rgba(0,0,0,1)'; // color doesn't matter
+          context.lineWidth = obj.strokeWidth || 10; // eraser size
+          context.lineCap = 'round';
+          context.lineJoin = 'round';
+          context.globalCompositeOperation = 'destination-out';
+          context.stroke();
+          context.globalCompositeOperation = 'source-over';
+          context.restore();
+        }
+        break;
+
         
       case 'triangle':
         context.beginPath();
@@ -409,156 +450,160 @@ const AdvancedCanvasEditor = () => {
   };
 
   // Mouse event handlers
-  const handleMouseDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    setStartPos({ x, y });
-    setCurrentPos({ x, y });
-    
-    if (activeTool === 'select') {
-      const clickedObject = findObjectAtPosition(x, y);
-      if (clickedObject) {
-        setSelectedObject(clickedObject);
-        const bounds = getObjectBounds(clickedObject);
-        setDragOffset({ x: x - bounds.x, y: y - bounds.y });
-      } else {
-        setSelectedObject(null);
-      }
-    } else {
-      setIsDrawing(true);
-      if (activeTool === 'brush') {
-        const newBrushStroke = {
-          id: Date.now(),
-          type: 'brush',
-          points: [{ x, y }],
-          stroke: color,
-          strokeWidth: brushSize,
-          visible: true
-        };
-        setObjects(prev => [...prev, newBrushStroke]);
-      }
-    }
-  };
+ // Mouse event handlers
+const handleMouseDown = (e) => {
+  const rect = canvasRef.current.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
 
-  const handleMouseMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    setCurrentPos({ x, y });
-    
-    if (isDrawing) {
-      if (activeTool === 'brush') {
-        setObjects(prev => {
-          const newObjects = [...prev];
-          const lastObject = newObjects[newObjects.length - 1];
-          if (lastObject && lastObject.type === 'brush') {
-            lastObject.points.push({ x, y });
-          }
-          return newObjects;
-        });
+  setStartPos({ x, y });
+  setCurrentPos({ x, y });
+
+  if (activeTool === 'select') {
+    const clickedObject = findObjectAtPosition(x, y);
+    if (clickedObject) {
+      setSelectedObject(clickedObject);
+      const bounds = getObjectBounds(clickedObject);
+      setDragOffset({ x: x - bounds.x, y: y - bounds.y });
+    } else {
+      setSelectedObject(null);
+    }
+  } else {
+    setIsDrawing(true);
+
+    if (activeTool === 'brush' || activeTool === 'eraser') {
+      const newStroke = {
+        id: Date.now(),
+        type: activeTool,
+        points: [{ x, y }],
+        stroke: activeTool === 'eraser' ? 'transparent' : color,
+        strokeWidth: brushSize,
+        visible: true
+      };
+      setObjects(prev => [...prev, newStroke]);
+    }
+  }
+};
+
+const handleMouseMove = (e) => {
+  const rect = canvasRef.current.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  setCurrentPos({ x, y });
+
+  if (isDrawing && (activeTool === 'brush' || activeTool === 'eraser')) {
+    setObjects(prev => {
+      const newObjects = [...prev];
+      const lastObject = newObjects[newObjects.length - 1];
+      if (lastObject && lastObject.type === activeTool) {
+        lastObject.points.push({ x, y });
       }
-      renderCanvas();
-    } else if (selectedObject && activeTool === 'select' && e.buttons === 1) {
-      // Move selected object
-      const newX = x - dragOffset.x;
-      const newY = y - dragOffset.y;
-      
-      setObjects(prev => prev.map(obj => 
-        obj.id === selectedObject.id 
+      return newObjects;
+    });
+    renderCanvas();
+  }
+
+  if (!isDrawing && selectedObject && activeTool === 'select' && e.buttons === 1) {
+    const newX = x - dragOffset.x;
+    const newY = y - dragOffset.y;
+
+    setObjects(prev =>
+      prev.map(obj =>
+        obj.id === selectedObject.id
           ? { ...obj, x: newX, y: newY }
           : obj
-      ));
-      
-      setSelectedObject(prev => ({ ...prev, x: newX, y: newY }));
-      renderCanvas();
-    }
-  };
+      )
+    );
 
-  const handleMouseUp = () => {
-    if (isDrawing && activeTool !== 'brush') {
-      const width = currentPos.x - startPos.x;
-      const height = currentPos.y - startPos.y;
-      
-      let newObject = {
-        id: Date.now(),
-        visible: true,
-        stroke: color,
-        fill: fillColor,
-        strokeWidth: strokeWidth
-      };
-      
-      switch (activeTool) {
-        case 'rectangle':
-          newObject = {
-            ...newObject,
-            type: 'rectangle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            width: Math.abs(width),
-            height: Math.abs(height)
-          };
-          break;
-        case 'circle':
-          const radius = Math.abs(width) / 2;
-          newObject = {
-            ...newObject,
-            type: 'circle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            radius: radius
-          };
-          break;
-        case 'triangle':
-          newObject = {
-            ...newObject,
-            type: 'triangle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            width: Math.abs(width),
-            height: Math.abs(height)
-          };
-          break;
-        case 'line':
-          newObject = {
-            ...newObject,
-            type: 'line',
-            x1: startPos.x,
-            y1: startPos.y,
-            x2: currentPos.x,
-            y2: currentPos.y
-          };
-          break;
-        case 'star':
-          newObject = {
-            ...newObject,
-            type: 'star',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            size: Math.abs(width) / 2
-          };
-          break;
-        case 'hexagon':
-          newObject = {
-            ...newObject,
-            type: 'hexagon',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            size: Math.abs(width) / 2
-          };
-          break;
-      }
-      
-      if (Math.abs(width) > 5 || Math.abs(height) > 5) {
-        setObjects(prev => [...prev, newObject]);
-        saveToHistory();
-      }
+    setSelectedObject(prev => ({ ...prev, x: newX, y: newY }));
+    renderCanvas();
+  }
+};
+
+const handleMouseUp = () => {
+  if (isDrawing && activeTool !== 'brush' && activeTool !== 'eraser') {
+    const width = currentPos.x - startPos.x;
+    const height = currentPos.y - startPos.y;
+
+    let newObject = {
+      id: Date.now(),
+      visible: true,
+      stroke: color,
+      fill: fillColor,
+      strokeWidth: strokeWidth
+    };
+
+    switch (activeTool) {
+      case 'rectangle':
+        newObject = {
+          ...newObject,
+          type: 'rectangle',
+          x: Math.min(startPos.x, currentPos.x),
+          y: Math.min(startPos.y, currentPos.y),
+          width: Math.abs(width),
+          height: Math.abs(height)
+        };
+        break;
+      case 'circle':
+        const radius = Math.abs(width) / 2;
+        newObject = {
+          ...newObject,
+          type: 'circle',
+          x: Math.min(startPos.x, currentPos.x),
+          y: Math.min(startPos.y, currentPos.y),
+          radius
+        };
+        break;
+      case 'triangle':
+        newObject = {
+          ...newObject,
+          type: 'triangle',
+          x: Math.min(startPos.x, currentPos.x),
+          y: Math.min(startPos.y, currentPos.y),
+          width: Math.abs(width),
+          height: Math.abs(height)
+        };
+        break;
+      case 'line':
+        newObject = {
+          ...newObject,
+          type: 'line',
+          x1: startPos.x,
+          y1: startPos.y,
+          x2: currentPos.x,
+          y2: currentPos.y
+        };
+        break;
+      case 'star':
+        newObject = {
+          ...newObject,
+          type: 'star',
+          x: Math.min(startPos.x, currentPos.x),
+          y: Math.min(startPos.y, currentPos.y),
+          size: Math.abs(width) / 2
+        };
+        break;
+      case 'hexagon':
+        newObject = {
+          ...newObject,
+          type: 'hexagon',
+          x: Math.min(startPos.x, currentPos.x),
+          y: Math.min(startPos.y, currentPos.y),
+          size: Math.abs(width) / 2
+        };
+        break;
     }
-    
-    setIsDrawing(false);
-  };
+
+    if (Math.abs(width) > 5 || Math.abs(height) > 5) {
+      setObjects(prev => [...prev, newObject]);
+      saveToHistory();
+    }
+  }
+
+  setIsDrawing(false);
+  renderCanvas(); // ✅ Always re-render on mouse up
+};
 
   // Find object at position
   const findObjectAtPosition = (x, y) => {
