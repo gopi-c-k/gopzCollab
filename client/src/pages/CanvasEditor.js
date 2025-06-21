@@ -59,7 +59,7 @@ import {
   Zap,
   Eraser,
   Droplet,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 
 
@@ -90,6 +90,9 @@ const AdvancedCanvasEditor = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [lastX, setLastX] = useState(0);
   const [lastY, setLastY] = useState(0);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+const eraserSize = brushSize || 20; // or a fixed value like 20
+
 
 
   // Color presets
@@ -489,6 +492,8 @@ const handleMouseMove = (e) => {
   const rect = canvasRef.current.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  setMousePos({ x, y });
+
 
   setCurrentPos({ x, y });
 
@@ -896,7 +901,18 @@ const handleMouseUp = () => {
               isActive={showLayersPanel}
               onClick={() => setShowLayersPanel(!showLayersPanel)} 
               title="Toggle Layers Panel" 
+
             />
+            <ToolButton
+  icon={RefreshCw}
+  onClick={() => {
+    setObjects([]);
+    setSelectedObject(null);
+    renderCanvas();
+  }}
+  title="Reset Canvas"
+/>
+
           </div>
         </div>
         
@@ -995,22 +1011,51 @@ const handleMouseUp = () => {
             title="Eraser"
           />
         </div>
+       
+
+
         
         {/* Canvas Area */}
-        <div className="flex-1 relative overflow-auto bg-gray-100 flex items-center justify-center">
-          <div style={{ transform: `scale(${zoom / 100})` }}>
-            <canvas
-              ref={canvasRef}
-              className={`shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'}`}
-              width={canvasSize.width}
-              height={canvasSize.height}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-            />
-          </div>
-        </div>
+    {/* Canvas Area */}
+<div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center">
+  {/* scaled wrapper MUST be relative */}
+  <div
+    className="relative"
+    style={{ transform: `scale(${zoom / 100})` }}
+  >
+   <canvas
+  ref={canvasRef}
+ className={`shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'} ${
+  activeTool === 'eraser' 
+    ? 'cursor-none' 
+    : activeTool === 'brush' 
+      ? 'cursor-default' 
+      : 'cursor-crosshair'
+}`}
+  width={canvasSize.width}
+  height={canvasSize.height}
+  onMouseDown={handleMouseDown}
+  onMouseMove={handleMouseMove}
+  onMouseUp={handleMouseUp}
+  onMouseLeave={handleMouseUp}
+/>
+
+
+    {/* rectangular eraser preview */}
+    {activeTool === 'eraser' && (
+      <div
+        className="pointer-events-none border border-red-500 bg-white/40 absolute"
+        style={{
+          width: brushSize,
+          height: brushSize,
+          left: mousePos.x - brushSize / 2,
+          top: mousePos.y - brushSize / 2,
+        }}
+      />
+    )}
+  </div>
+</div>
+
         
         {/* Right Panels */}
         <div className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-l w-64 flex flex-col`}>
@@ -1049,25 +1094,29 @@ const handleMouseUp = () => {
                   {strokeWidth}px
                 </div>
               </div>
-              
-              {activeTool === 'brush' || activeTool === 'eraser' ? (
-                <div className="flex flex-col space-y-2">
-                  <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Brush Size
-                  </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {brushSize}px
-                  </div>
-                </div>
-              ) : null}
+{activeTool === 'brush' || activeTool === 'eraser' ? (
+  <div className="flex flex-col space-y-2">
+    <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+      {activeTool === 'brush' ? 'Brush Size' : 'Eraser Size'}
+    </label>
+    <input
+      type="range"
+      min="5"
+      max="100"
+      value={brushSize}
+      onChange={(e) => setBrushSize(parseInt(e.target.value))}
+      className="w-full"
+    />
+    <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+      {brushSize}px
+    </div>
+  </div>
+) : null}
+
+
+
+
+
               
               {activeTool === 'text' || selectedObject?.type === 'text' ? (
                 <>
