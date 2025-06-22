@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { ChromePicker } from 'react-color';
 import {
   Edit,
   Image,
@@ -61,7 +62,7 @@ import {
   Droplet,
   RefreshCw,
 } from 'lucide-react';
-import { ChromePicker } from 'react-color';
+
 
 const AdvancedCanvasEditor = () => {
   const canvasRef = useRef(null);
@@ -670,13 +671,13 @@ const AdvancedCanvasEditor = () => {
   };
 
   // Object operations
-const deleteAll = () => {
-  setObjects([]);              // Clear all drawn objects
-  setSelectedObject(null);     // Clear any selection
-  setClipboard(null);          // Optional: clear clipboard
-  saveToHistory();             // Optional: save action to undo stack
-  renderCanvas();              // Re-render canvas
-};
+  const deleteAll = () => {
+    setObjects([]);              // Clear all drawn objects
+    setSelectedObject(null);     // Clear any selection
+    setClipboard(null);          // Optional: clear clipboard
+    saveToHistory();             // Optional: save action to undo stack
+    renderCanvas();              // Re-render canvas
+  };
 
 
   const duplicateSelected = () => {
@@ -776,15 +777,15 @@ const deleteAll = () => {
     setZoom(newZoom);
   };
   const newFile = () => {
-  if (window.confirm("Start a new file? This will clear all your work.")) {
-    setObjects([]);               // Clear all drawn objects
-    setSelectedObject(null);      // Deselect anything
-    setClipboard(null);           // Clear clipboard
-    setHistory([]);               // Reset undo history
-   // setRedoStack([]);             // Reset redo stack
-    renderCanvas();               // Re-render the cleared canvas
-  }
-};
+    if (window.confirm("Start a new file? This will clear all your work.")) {
+      setObjects([]);               // Clear all drawn objects
+      setSelectedObject(null);      // Deselect anything
+      setClipboard(null);           // Clear clipboard
+      setHistory([]);               // Reset undo history
+      // setRedoStack([]);             // Reset redo stack
+      renderCanvas();               // Re-render the cleared canvas
+    }
+  };
 
 
   const resetZoom = () => {
@@ -816,15 +817,16 @@ const deleteAll = () => {
   // UI Components
   const ToolButton = ({ icon: Icon, isActive, onClick, title, disabled = false }) => (
     <button
-      className={`p-2 rounded-lg transition-all duration-200 ${
-        isActive 
-          ? 'bg-blue-600 text-white shadow-lg' 
-          : disabled 
-            ? 'text-gray-500 cursor-not-allowed' 
-            : darkMode 
-              ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
-              : 'text-gray-600 hover:bg-gray-100'
-      }`}
+      className={`p-2 rounded-lg transition-all duration-200 ${disabled
+        ? darkMode
+          ? 'bg-gray-800 text-gray-500 cursor-not-allowed hover:text-white hover:bg-gray-600'
+          : 'text-gray-500 cursor-not-allowed'
+        : isActive
+          ? 'bg-blue-600 text-white shadow-lg'
+          : darkMode
+            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+            : 'text-gray-600 hover:bg-gray-100'
+        }`}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -866,12 +868,29 @@ const deleteAll = () => {
         <div className="flex items-center space-x-4">
           {/* File Operations */}
           <div className="flex items-center space-x-1">
-            <ToolButton icon={File} onClick={() => {}} title="New File" />
-            <ToolButton icon={Folder} onClick={() => {}} title="Open" />
-            <ToolButton icon={Save} onClick={() => exportCanvas('png')} title="Export PNG" />
-            <ToolButton icon={Download} onClick={() => exportCanvas('svg')} title="Export SVG" />
+            <ToolButton
+              icon={File}
+              onClick={newFile}
+              title="New File"
+            />
+            <ToolButton
+              icon={Folder}
+              onClick={() => alert("Open functionality not implemented yet.")}
+              title="Open"
+            />
+            <ToolButton
+              icon={Save}
+              onClick={() => exportCanvas('png')}
+              title="Export PNG"
+            />
+            <ToolButton
+              icon={Download}
+              onClick={() => exportCanvas('svg')}
+              title="Export SVG"
+            />
           </div>
-          
+
+
           <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
 
           {/* Edit Operations */}
@@ -882,29 +901,31 @@ const deleteAll = () => {
               title="Undo (Ctrl+Z)"
               disabled={historyIndex <= 0}
             />
-            <ToolButton 
-              icon={Redo} 
-              onClick={redo} 
-              title="Redo (Ctrl+Y)" 
+
+            <ToolButton
+              icon={Redo}
+              onClick={redo}
+              title="Redo (Ctrl+Y)"
               disabled={historyIndex >= history.length - 1}
             />
-            <ToolButton 
-              icon={Trash2} 
-              onClick={deleteSelected} 
-              title="Delete" 
-              disabled={!selectedObject}
+            <ToolButton
+              icon={Trash2} // Or use a different icon like Lucide's `Trash`
+              onClick={deleteAll}
+              title="Delete All"
             />
-            <ToolButton 
-              icon={Copy} 
-              onClick={copySelected} 
-              title="Copy" 
-              disabled={!selectedObject}
+
+            <ToolButton
+              icon={Copy}
+              onClick={copyAll}
+              title="Copy"
+              disabled={objects.length === 0}
             />
-            <ToolButton 
-              icon={Clipboard} 
-              onClick={paste} 
-              title="Paste" 
-              disabled={!clipboard}
+
+            <ToolButton
+              icon={Clipboard}
+              onClick={paste}
+              title="Paste"
+              disabled={!clipboard || clipboard.length === 0}
             />
           </div>
 
@@ -1045,34 +1066,35 @@ const deleteAll = () => {
             title="Eraser"
           />
         </div>
-       
+        {/* File Actions */}
+
+
 
 
 
         {/* Canvas Area */}
-    {/* Canvas Area */}
-<div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center">
-  {/* scaled wrapper MUST be relative */}
-  <div
-    className="relative"
-    style={{ transform: `scale(${zoom / 100})` }}
-  >
-   <canvas
-  ref={canvasRef}
- className={`shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'} ${
-  activeTool === 'eraser' 
-    ? 'cursor-none' 
-    : activeTool === 'brush' 
-      ? 'cursor-default' 
-      : 'cursor-crosshair'
-}`}
-  width={canvasSize.width}
-  height={canvasSize.height}
-  onMouseDown={handleMouseDown}
-  onMouseMove={handleMouseMove}
-  onMouseUp={handleMouseUp}
-  onMouseLeave={handleMouseUp}
-/>
+        {/* Canvas Area */}
+        <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center">
+          {/* scaled wrapper MUST be relative */}
+          <div
+            className="relative"
+            style={{ transform: `scale(${zoom / 100})` }}
+          >
+            <canvas
+              ref={canvasRef}
+              className={`shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'} ${activeTool === 'eraser'
+                ? 'cursor-none'
+                : activeTool === 'brush'
+                  ? 'cursor-default'
+                  : 'cursor-crosshair'
+                }`}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            />
 
 
             {/* rectangular eraser preview */}
@@ -1100,18 +1122,37 @@ const deleteAll = () => {
             </h3>
 
             <div className="space-y-4">
-              <ColorPicker 
-                value={color} 
-                onChange={setColor} 
-                label="Stroke Color" 
-              />
-              
-              <ColorPicker 
-                value={fillColor} 
-                onChange={setFillColor} 
-                label="Fill Color" 
-              />
-              
+              <label className={`block mb-2 font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>Stroke Color</label>
+              <div className='flex items-center space-x-4'>
+                <input
+                  type='color'
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                />
+
+                {/* Text input showing current color */}
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
+              </div>
+              <label className={`block mb-2 font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>Fill Color</label>
+              <div className='flex items-center space-x-4'>
+                <input
+                  type='color'
+                  value={fillColor}
+                  onChange={(e) => setFillColor(e.target.value)}
+                />
+                <input
+                  type="text"
+                  value={fillColor}
+                  onChange={(e) => setFillColor(e.target.value)}
+                  className="border p-2 rounded w-full"
+                />
+              </div>
+
               <div className="flex flex-col space-y-2">
                 <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Stroke Width
@@ -1128,30 +1169,30 @@ const deleteAll = () => {
                   {strokeWidth}px
                 </div>
               </div>
-{activeTool === 'brush' || activeTool === 'eraser' ? (
-  <div className="flex flex-col space-y-2">
-    <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-      {activeTool === 'brush' ? 'Brush Size' : 'Eraser Size'}
-    </label>
-    <input
-      type="range"
-      min="5"
-      max="100"
-      value={brushSize}
-      onChange={(e) => setBrushSize(parseInt(e.target.value))}
-      className="w-full"
-    />
-    <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-      {brushSize}px
-    </div>
-  </div>
-) : null}
+              {activeTool === 'brush' || activeTool === 'eraser' ? (
+                <div className="flex flex-col space-y-2">
+                  <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {activeTool === 'brush' ? 'Brush Size' : 'Eraser Size'}
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {brushSize}px
+                  </div>
+                </div>
+              ) : null}
 
 
 
 
 
-              
+
               {activeTool === 'text' || selectedObject?.type === 'text' ? (
                 <>
                   <div className="flex flex-col space-y-2">
@@ -1250,14 +1291,22 @@ const deleteAll = () => {
                   [...objects].reverse().map((obj) => (
                     <div
                       key={obj.id}
-                      className={`p-2 rounded flex items-center justify-between ${
-                        selectedObject?.id === obj.id 
-                          ? 'bg-blue-600 text-white' 
-                          : darkMode 
-                            ? 'hover:bg-gray-700' 
-                            : 'hover:bg-gray-100'
-                      } cursor-pointer`}
-                      onClick={() => setSelectedObject(obj)}
+                      className={`p-2 rounded flex items-center justify-between ${selectedObject?.id === obj.id
+                        ? 'bg-blue-600 text-white'
+                        : darkMode
+                          ? 'hover:bg-gray-700'
+                          : 'hover:bg-gray-100'
+                        } cursor-pointer`}
+                      onClick={() => {
+                        setSelectedObject(selectedObject === obj ? null : obj);
+                        if (selectedObject) {
+                          console.log(selectedObject)
+                          console.log(selectedObject.toObject());
+                        } else {
+                          console.warn('No object is selected.');
+                        }
+
+                      }}
                     >
                       <div className="flex items-center space-x-2">
                         <button
@@ -1265,13 +1314,12 @@ const deleteAll = () => {
                             e.stopPropagation();
                             toggleObjectVisibility(obj);
                           }}
-                          className={`p-1 rounded ${
-                            selectedObject?.id === obj.id 
-                              ? 'text-white hover:bg-blue-700' 
-                              : darkMode 
-                                ? 'text-gray-300 hover:bg-gray-600' 
-                                : 'text-gray-600 hover:bg-gray-200'
-                          }`}
+                          className={`p-1 rounded ${selectedObject?.id === obj.id
+                            ? `${darkMode ? 'text-gray bg-gray-700' : 'text-black bg-white'} hover:bg-blue-700`
+                            : darkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-white text-gray-600 hover:bg-gray-200'
+                            }`}
                         >
                           {obj.visible ? <Eye className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'hover:bg-gray-100'}`} size={14} /> :
                             <EyeOff className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-100'}`} size={14} />}
