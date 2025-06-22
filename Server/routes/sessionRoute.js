@@ -5,6 +5,7 @@ const SessionMiddleware = require('../middleware/SessionMiddleware');
 const verifyDocumentOwnership = require('../middleware/DocumentMiddleware');
 const createOrJoinDocumentSession = require('../controllers/sessionControllers/createOrJoinDocumentSession');
 const endDocumentSession = require('../controllers/sessionControllers/endDocumentSessionController');
+const verifySocket = require('../middleware/SocketMiddleware');
 router.post(
     '/create-or-join/:documentId',
     AuthMiddleware,
@@ -13,6 +14,7 @@ router.post(
 );
 router.post(
     '/end/:sessionId',
+    verifySocket,
     endDocumentSession
 );
 

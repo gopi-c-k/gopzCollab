@@ -72,14 +72,26 @@ wss.on('connection', (conn, req) => {
                 {
                   sessionId: room,
                   content: finalContent.content,
+                }, {
+                headers: {
+                  'Authorization': `Bearer ${process.env.SECRET_KEY}`
                 }
+              }
               );
               console.log(`✅ Final content saved for room ${room}:`, response.data);
             } catch (error) {
               console.error(`❌ Failed to save content for room ${room}:`, error.message);
             }
             try {
-              const response = await axios.post(`${process.env.BACKEND_URL}/session/end/${room}`)
+              const response = await axios.post(
+                `${process.env.BACKEND_URL}/session/end/${room}`,{},
+                {
+                  headers: {
+                    'Authorization': `Bearer ${process.env.SECRET_KEY}`
+                  }
+                }
+              );
+
               console.log("Session activity save and dead", response.data);
             } catch (error) {
               console.error(`❌ Failed to dead the session ${room}:`, error.message);
