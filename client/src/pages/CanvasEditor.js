@@ -69,7 +69,6 @@ const AdvancedCanvasEditor = () => {
   const [ctx, setCtx] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
   const [color, setColor] = useState('#000000');
-  const [fillColor, setFillColor] = useState('#3b82f6');
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState(24);
@@ -93,7 +92,8 @@ const AdvancedCanvasEditor = () => {
   const [lastY, setLastY] = useState(0);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const eraserSize = brushSize || 20; // or a fixed value like 20
-
+  const [fillColor, setFillColor] = useState(darkMode ? '#111827' : '#ffffff');
+  const [fillContextColor,setFillContextColor] = useState(darkMode ? '#111827' : '#ffffff');
 
 
   // Color presets
@@ -129,7 +129,8 @@ const AdvancedCanvasEditor = () => {
     context.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
     // Set background
-    context.fillStyle = darkMode ? '#111827' : '#ffffff';
+
+    context.fillStyle = fillColor;
     context.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
     // Draw grid if visible
@@ -158,8 +159,6 @@ const AdvancedCanvasEditor = () => {
     });
 
 
-
-
     // Draw selection handles for selected object
     if (selectedObject) {
       drawSelectionHandles(context, selectedObject);
@@ -169,7 +168,7 @@ const AdvancedCanvasEditor = () => {
     if (isDrawing && activeTool !== 'brush' && activeTool !== 'eraser') {
       drawPreview(context);
     }
-  }, [ctx, objects, selectedObject, isDrawing, darkMode, gridVisible, activeTool, startPos, currentPos, color, fillColor, strokeWidth, fontSize, fontFamily]);
+  }, [ctx, objects, selectedObject, isDrawing, darkMode, gridVisible, activeTool, startPos, currentPos, fillColor, color, strokeWidth, fontSize, fontFamily]);
 
   // Draw grid
   const drawGrid = (context) => {
@@ -385,7 +384,7 @@ const AdvancedCanvasEditor = () => {
     context.save();
     context.setLineDash([5, 5]);
     context.strokeStyle = color;
-    context.fillStyle = fillColor;
+    context.fillStyle = fillContextColor;
     context.lineWidth = strokeWidth;
 
     const width = currentPos.x - startPos.x;
@@ -834,32 +833,50 @@ const AdvancedCanvasEditor = () => {
       <Icon size={18} />
     </button>
   );
-
-  const ColorPicker = ({ value, onChange, label }) => (
-    <div className="flex flex-col space-y-2">
-      <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-        {label}
-      </label>
-      <div className="flex items-center space-x-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-8 h-8 rounded border cursor-pointer"
-        />
-        <div className="flex flex-wrap gap-1">
-          {colorPresets.slice(0, 8).map(color => (
-            <button
-              key={color}
-              className="w-4 h-4 rounded border hover:scale-110 transition-transform"
-              style={{ backgroundColor: color }}
-              onClick={() => onChange(color)}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+  const ZoomOverlayButton = ({ icon: Icon, isActive, onClick, title, disabled = false }) => (
+    <button
+      className={`p-2 rounded-lg transition-all duration-200 ${disabled
+        ? darkMode
+          ? 'bg-gray-800 text-gray-500 cursor-not-allowed hover:text-white hover:bg-gray-600'
+          : 'text-gray-500 cursor-not-allowed'
+        : isActive
+          ? 'bg-blue-600 text-white shadow-lg'
+          : darkMode
+            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white'
+            : 'text-gray-600 hover:bg-gray-100'
+        }`}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      <Icon size={12} />
+    </button>
   );
+  // const ColorPicker = ({ value, onChange, label }) => (
+  //   <div className="flex flex-col space-y-2">
+  //     <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+  //       {label}
+  //     </label>
+  //     <div className="flex items-center space-x-2">
+  //       <input
+  //         type="color"
+  //         value={value}
+  //         onChange={(e) => onChange(e.target.value)}
+  //         className="w-8 h-8 rounded border cursor-pointer"
+  //       />
+  //       <div className="flex flex-wrap gap-1">
+  //         {colorPresets.slice(0, 8).map(color => (
+  //           <button
+  //             key={color}
+  //             className="w-4 h-4 rounded border hover:scale-110 transition-transform"
+  //             style={{ backgroundColor: color }}
+  //             onClick={() => onChange(color)}
+  //           />
+  //         ))}
+  //       </div>
+  //     </div>
+  //   </div>
+  // );
 
   return (
     <div className={`flex flex-col h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -931,18 +948,6 @@ const AdvancedCanvasEditor = () => {
 
           <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
 
-          {/* Zoom Controls */}
-          <div className="flex items-center space-x-1">
-            <ToolButton icon={ZoomOut} onClick={zoomOut} title="Zoom Out" />
-            <span className={`px-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              {zoom}%
-            </span>
-            <ToolButton icon={ZoomIn} onClick={zoomIn} title="Zoom In" />
-            <ToolButton icon={Maximize2} onClick={resetZoom} title="Reset Zoom" />
-          </div>
-
-          <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
-
           {/* View Options */}
           <div className="flex items-center space-x-1">
             <ToolButton
@@ -995,7 +1000,7 @@ const AdvancedCanvasEditor = () => {
           <ToolButton
             icon={MousePointer}
             isActive={activeTool === 'select'}
-            onClick={() => setActiveTool('select')}
+            onClick={() =>{ activeTool === 'select' ? setActiveTool('') : setActiveTool('select') }}
             title="Select Tool (V)"
           />
 
@@ -1004,49 +1009,56 @@ const AdvancedCanvasEditor = () => {
           <ToolButton
             icon={Type}
             isActive={activeTool === 'text'}
-            onClick={() => { setActiveTool('text'); addText(); }}
+            onClick={() => {
+              if (activeTool === 'text') {
+                setActiveTool("");
+              } else {
+                setActiveTool('text');
+                addText();
+              }
+            }}
             title="Text Tool (T)"
           />
 
           <ToolButton
             icon={Square}
             isActive={activeTool === 'rectangle'}
-            onClick={() => setActiveTool('rectangle')}
+            onClick={() => { activeTool === 'rectangle' ? setActiveTool('') : setActiveTool('rectangle') }}
             title="Rectangle"
           />
 
           <ToolButton
             icon={Circle}
             isActive={activeTool === 'circle'}
-            onClick={() => setActiveTool('circle')}
+            onClick={() => { activeTool === 'cirlce' ? setActiveTool('') : setActiveTool('circle') }}
             title="Circle"
           />
 
           <ToolButton
             icon={Triangle}
             isActive={activeTool === 'triangle'}
-            onClick={() => setActiveTool('triangle')}
+            onClick={() => { activeTool === 'triangle' ? setActiveTool('') : setActiveTool('triangle') }}
             title="Triangle"
           />
 
           <ToolButton
             icon={Minus}
             isActive={activeTool === 'line'}
-            onClick={() => setActiveTool('line')}
+            onClick={() => { activeTool === 'line' ? setActiveTool('') : setActiveTool('line') }}
             title="Line"
           />
 
           <ToolButton
             icon={Star}
             isActive={activeTool === 'star'}
-            onClick={() => setActiveTool('star')}
+            onClick={() => { activeTool === 'star' ? setActiveTool('') : setActiveTool('star') }}
             title="Star"
           />
 
           <ToolButton
             icon={Hexagon}
             isActive={activeTool === 'hexagon'}
-            onClick={() => setActiveTool('hexagon')}
+            onClick={() => { activeTool === 'hexagon' ? setActiveTool('') : setActiveTool('hexagon') }}
             title="Hexagon"
           />
 
@@ -1066,16 +1078,8 @@ const AdvancedCanvasEditor = () => {
             title="Eraser"
           />
         </div>
-        {/* File Actions */}
-
-
-
-
-
         {/* Canvas Area */}
-        {/* Canvas Area */}
-        <div className="flex-1 overflow-auto bg-gray-100 flex items-center justify-center">
-          {/* scaled wrapper MUST be relative */}
+        <div className={`flex-1 overflow-auto bg-gray-100 ${darkMode && 'bg-red-900'}flex items-center justify-center`}>
           <div
             className="relative"
             style={{ transform: `scale(${zoom / 100})` }}
@@ -1096,8 +1100,7 @@ const AdvancedCanvasEditor = () => {
               onMouseLeave={handleMouseUp}
             />
 
-
-            {/* rectangular eraser preview */}
+            {/* Eraser preview */}
             {activeTool === 'eraser' && (
               <div
                 className="pointer-events-none border border-red-500 bg-white/40 absolute"
@@ -1110,7 +1113,25 @@ const AdvancedCanvasEditor = () => {
               />
             )}
           </div>
+
+          {/* Zoom Controls */}
+          <div className={`fixed bottom-4 right-80 flex items-center space-x-2 bg-white ${darkMode && 'dark:bg-gray-800'} p-2 rounded  ${darkMode ? 'bg-gray-800 shadow-lg shadow-black/40' : 'bg-white shadow-md shadow-gray-300'}`}>
+            <ZoomOverlayButton icon={ZoomOut} onClick={zoomOut} title="Zoom Out" />
+            <span className={`px-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {zoom}%
+            </span>
+            <ZoomOverlayButton icon={ZoomIn} onClick={zoomIn} title="Zoom In" />
+            <ZoomOverlayButton icon={Maximize2} onClick={resetZoom} title="Reset Zoom" />
+          </div>
+
+          {/* Mouse Position Tracker */}
+          <div
+            className={`fixed bottom-0 left-16 bg-white text-sm px-3 py-1 rounded shadow-md shadow-black/20 text-gray-700 ${darkMode && 'dark:text-gray-300 dark:bg-gray-800'}`}
+          >
+            X: {Math.floor(mousePos.x)}, Y: {Math.floor(mousePos.y)}
+          </div>
         </div>
+
 
 
         {/* Right Panels */}
@@ -1142,9 +1163,29 @@ const AdvancedCanvasEditor = () => {
               <div className='flex items-center space-x-4'>
                 <input
                   type='color'
-                  value={fillColor}
-                  onChange={(e) => setFillColor(e.target.value)}
+                  value={selectedObject ? selectedObject.fill : fillColor}
+                  onChange={(e) => {
+                    const newColor = e.target.value;
+
+                    if (selectedObject || activeTool !== "") {
+                      setObjects(prev =>
+                        prev.map(obj =>
+                          obj.id === selectedObject.id ? { ...obj, fill: newColor } : obj
+                        )
+                      );
+                      setSelectedObject(prev =>
+                        prev ? { ...prev, fill: newColor } : null
+                      );
+                      setFillContextColor(newColor);
+                    } else {
+                      setFillColor(newColor);
+                      if (activeTool === "") {
+                         renderCanvas()
+                      }
+                    }
+                  }}
                 />
+
                 <input
                   type="text"
                   value={fillColor}
@@ -1187,11 +1228,6 @@ const AdvancedCanvasEditor = () => {
                   </div>
                 </div>
               ) : null}
-
-
-
-
-
 
               {activeTool === 'text' || selectedObject?.type === 'text' ? (
                 <>
@@ -1300,8 +1336,8 @@ const AdvancedCanvasEditor = () => {
                       onClick={() => {
                         setSelectedObject(selectedObject === obj ? null : obj);
                         if (selectedObject) {
-                          console.log(selectedObject)
-                          console.log(selectedObject.toObject());
+                          // console.log(selectedObject)
+                          // console.log(selectedObject.toObject());
                         } else {
                           console.warn('No object is selected.');
                         }
