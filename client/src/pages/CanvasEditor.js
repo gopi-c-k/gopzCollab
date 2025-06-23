@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { ChromePicker } from 'react-color';
+import * as fabric from 'fabric';
 import {
-  Edit,
-  Image,
   Type,
   Square,
   Circle,
   Triangle,
   Minus,
+  Pencil,
   ArrowRight,
   Trash2,
   Layers,
@@ -18,7 +17,7 @@ import {
   Undo,
   Redo,
   Bold,
-  Italic,
+  Italic, Paintbrush2, Sparkles,
   Underline,
   AlignLeft,
   AlignCenter,
@@ -59,22 +58,20 @@ import {
   Star,
   Zap,
   Eraser,
+  PencilRuler,
   Droplet,
   RefreshCw,
 } from 'lucide-react';
 
-
 const AdvancedCanvasEditor = () => {
   const canvasRef = useRef(null);
-  const [ctx, setCtx] = useState(null);
-  const [activeTool, setActiveTool] = useState('select');
+  const [activeTool, setActiveTool] = useState('');
   const [color, setColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState(24);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(true);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const [objects, setObjects] = useState([]);
   const [selectedObject, setSelectedObject] = useState(null);
   const [history, setHistory] = useState([]);
@@ -83,616 +80,362 @@ const AdvancedCanvasEditor = () => {
   const [gridVisible, setGridVisible] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [showLayersPanel, setShowLayersPanel] = useState(true);
-  const [showPropertiesPanel, setShowPropertiesPanel] = useState(true);
   const [brushSize, setBrushSize] = useState(10);
   const [canvasSize] = useState({ width: 1200, height: 800 });
   const [clipboard, setClipboard] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [lastX, setLastX] = useState(0);
-  const [lastY, setLastY] = useState(0);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const eraserSize = brushSize || 20; // or a fixed value like 20
-  const [fillColor, setFillColor] = useState(darkMode ? '#111827' : '#ffffff');
-  const [fillContextColor,setFillContextColor] = useState(darkMode ? '#111827' : '#ffffff');
+  const [fillColor, setFillColor] = useState(darkMode ? '#ffffff' : '#ffffff');
+  const fabricCanvasRef = useRef(null);
+  const [currentShape, setCurrentShape] = useState(null);
+  const [shapeVersion, setShapeVersion] = useState(0);
+  const gridLinesRef = useRef([]);
+  const objectMapRef = useRef({});
+  const [nameInput, setNameInput] = useState('');
+  const [brushType, setBrushType] = useState('Pencil'); // Pencil, Spray, Circle
+  const [brushColor, setBrushColor] = useState('#000000');
 
 
-  // Color presets
-  const colorPresets = [
-    '#ffffff', '#f8fafc', '#e2e8f0', '#94a3b8', '#475569', '#1e293b', '#0f172a',
-    '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981',
-    '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7',
-    '#d946ef', '#ec4899', '#f43f5e'
-  ];
 
-  // Initialize canvas
+
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = 'high';
-    setCtx(context);
+    const canvas = new fabric.Canvas(canvasRef.current, {
+      width: canvasSize.width,
+      height: canvasSize.height,
+      backgroundColor: '#f8f9fa',
+      preserveObjectStacking: true,
+      selection: true,
+      selectionColor: 'transparent',
+      selectionBorderColor: '#00a1ff',
+      selectionLineWidth: 1,
+      selectionDashArray: [5, 5],
+      selectionFullyContained: false,
+      defaultCursor: 'default',
+      hoverCursor: 'move',
+      moveCursor: 'move',
+      allowTouchScrolling: true,
+    });
+    fabricCanvasRef.current = canvas;
+    // Add event listeners
+    canvas.on('object:added', () => saveToHistory(canvas));
+    canvas.on('object:modified', () => saveToHistory(canvas));
+    canvas.on('object:removed', () => saveToHistory(canvas));
+    const handleSelect = (e) => {
+      if (e.selected && e.selected.length === 1) {
+        const obj = objectMapRef.current[e.selected[0].id];
+        setSelectedObject(obj);
+      }
+    };
 
-    // Set canvas size
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
-
-    // Initial render
-    renderCanvas(context);
-    saveToHistory();
+    canvas.on('selection:created', handleSelect);
+    canvas.on('selection:updated', handleSelect);
+    canvas.on('selection:cleared', () => setSelectedObject(null));
+    canvas.on('mouse:move', (e) => {
+      setMousePos({
+        x: e.absolutePointer?.x || 0,
+        y: e.absolutePointer?.y || 0
+      });
+    });
+    canvas.renderAll();
+    saveToHistory(canvas);
+    return () => {
+      canvas.dispose();
+    };
   }, []);
 
-  // Render canvas
-  const renderCanvas = useCallback((context = ctx) => {
-    if (!context) return;
+  // Brush
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
 
-    // Clear canvas
-    context.clearRect(0, 0, canvasSize.width, canvasSize.height);
+    const handlePathCreated = (e) => {
+      const path = e.path;
+      const id = `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      path.id = id;
+      path.name = `brush-${id}`;
+      path.selectable = true;
+      objectMapRef.current[id] = path;
+      setObjects(prev => [...prev, path]);
+    };
 
-    // Set background
+    canvas.on('path:created', handlePathCreated);
 
-    context.fillStyle = fillColor;
-    context.fillRect(0, 0, canvasSize.width, canvasSize.height);
-
-    // Draw grid if visible
-    if (gridVisible) {
-      drawGrid(context);
-    }
-
-
-    objects.forEach(obj => {
-      context.save();
-
-      if (obj.type === 'eraser') {
-        // Set to erasing mode
-        context.globalCompositeOperation = 'destination-out';
-        context.strokeStyle = 'rgba(0,0,0,1)';
-      } else {
-        // Normal drawing mode
-        context.globalCompositeOperation = 'source-over';
-        context.strokeStyle = obj.stroke || '#000';
-        context.fillStyle = obj.fill || 'transparent';
-      }
-
-      drawObject(context, obj);
-
-      context.restore();
-    });
-
-
-    // Draw selection handles for selected object
-    if (selectedObject) {
-      drawSelectionHandles(context, selectedObject);
-    }
-
-    // Draw preview for current drawing
-    if (isDrawing && activeTool !== 'brush' && activeTool !== 'eraser') {
-      drawPreview(context);
-    }
-  }, [ctx, objects, selectedObject, isDrawing, darkMode, gridVisible, activeTool, startPos, currentPos, fillColor, color, strokeWidth, fontSize, fontFamily]);
+    return () => {
+      canvas.off('path:created', handlePathCreated);
+    };
+  }, []);
 
   // Draw grid
-  const drawGrid = (context) => {
-    const gridSize = 20;
-    context.strokeStyle = darkMode ? '#374151' : '#e5e7eb';
-    context.lineWidth = 0.5;
-    context.setLineDash([]);
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
 
-    for (let x = 0; x <= canvasSize.width; x += gridSize) {
-      context.beginPath();
-      context.moveTo(x, 0);
-      context.lineTo(x, canvasSize.height);
-      context.stroke();
-    }
+    const drawFabricGrid = (canvas, gridSize = 20, color = '#ccc') => {
+      const width = canvas.getWidth();
+      const height = canvas.getHeight();
 
-    for (let y = 0; y <= canvasSize.height; y += gridSize) {
-      context.beginPath();
-      context.moveTo(0, y);
-      context.lineTo(canvasSize.width, y);
-      context.stroke();
-    }
-  };
+      // Remove old grid lines if any
+      gridLinesRef.current.forEach(line => canvas.remove(line));
+      gridLinesRef.current = [];
 
-  // Draw object
-  const drawObject = (context, obj) => {
-    if (!obj.visible) return;
-
-    context.save();
-    context.globalAlpha = obj.opacity || 1;
-
-    switch (obj.type) {
-      case 'rectangle':
-        context.fillStyle = obj.fill;
-        context.strokeStyle = obj.stroke;
-        context.lineWidth = obj.strokeWidth;
-        context.fillRect(obj.x, obj.y, obj.width, obj.height);
-        if (obj.strokeWidth > 0) {
-          context.strokeRect(obj.x, obj.y, obj.width, obj.height);
-        }
-        break;
-
-      case 'circle':
-        context.beginPath();
-        context.arc(obj.x + obj.radius, obj.y + obj.radius, obj.radius, 0, 2 * Math.PI);
-        context.fillStyle = obj.fill;
-        context.fill();
-        if (obj.strokeWidth > 0) {
-          context.strokeStyle = obj.stroke;
-          context.lineWidth = obj.strokeWidth;
-          context.stroke();
-        }
-        break;
-
-      case 'line':
-        context.beginPath();
-        context.moveTo(obj.x1, obj.y1);
-        context.lineTo(obj.x2, obj.y2);
-        context.strokeStyle = obj.stroke;
-        context.lineWidth = obj.strokeWidth;
-        context.stroke();
-        break;
-
-      case 'text':
-        context.font = `${obj.fontWeight || 'normal'} ${obj.fontStyle || 'normal'} ${obj.fontSize}px ${obj.fontFamily}`;
-        context.fillStyle = obj.fill;
-        context.fillText(obj.text, obj.x, obj.y);
-        break;
-
-      case 'brush':
-        if (obj.points && obj.points.length > 1) {
-          context.beginPath();
-          context.moveTo(obj.points[0].x, obj.points[0].y);
-          for (let i = 1; i < obj.points.length; i++) {
-            context.lineTo(obj.points[i].x, obj.points[i].y);
-          }
-          context.strokeStyle = obj.stroke;
-          context.lineWidth = obj.strokeWidth;
-          context.lineCap = 'round';
-          context.lineJoin = 'round';
-          context.stroke();
-        }
-        break;
-      case 'eraser':
-        if (obj.points && obj.points.length > 1) {
-          context.save();
-          context.beginPath();
-          context.moveTo(obj.points[0].x, obj.points[0].y);
-          for (let i = 1; i < obj.points.length; i++) {
-            context.lineTo(obj.points[i].x, obj.points[i].y);
-          }
-          context.strokeStyle = 'rgba(0,0,0,1)'; // color doesn't matter
-          context.lineWidth = obj.strokeWidth || 10; // eraser size
-          context.lineCap = 'round';
-          context.lineJoin = 'round';
-          context.globalCompositeOperation = 'destination-out';
-          context.stroke();
-          context.globalCompositeOperation = 'source-over';
-          context.restore();
-        }
-        break;
-
-
-      case 'triangle':
-        context.beginPath();
-        context.moveTo(obj.x + obj.width / 2, obj.y);
-        context.lineTo(obj.x, obj.y + obj.height);
-        context.lineTo(obj.x + obj.width, obj.y + obj.height);
-        context.closePath();
-        context.fillStyle = obj.fill;
-        context.fill();
-        if (obj.strokeWidth > 0) {
-          context.strokeStyle = obj.stroke;
-          context.lineWidth = obj.strokeWidth;
-          context.stroke();
-        }
-        break;
-
-      case 'star':
-        drawStar(context, obj);
-        break;
-
-      case 'hexagon':
-        drawHexagon(context, obj);
-        break;
-    }
-
-    context.restore();
-  };
-
-  // Draw star
-  const drawStar = (context, obj) => {
-    const centerX = obj.x + obj.size;
-    const centerY = obj.y + obj.size;
-    const outerRadius = obj.size;
-    const innerRadius = obj.size * 0.5;
-
-    context.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      const angle = (i * Math.PI) / 5 - Math.PI / 2;
-      const x = centerX + Math.cos(angle) * radius;
-      const y = centerY + Math.sin(angle) * radius;
-
-      if (i === 0) {
-        context.moveTo(x, y);
-      } else {
-        context.lineTo(x, y);
+      if (!gridVisible) {
+        canvas.renderAll();
+        return;
       }
-    }
-    context.closePath();
-    context.fillStyle = obj.fill;
-    context.fill();
-    if (obj.strokeWidth > 0) {
-      context.strokeStyle = obj.stroke;
-      context.lineWidth = obj.strokeWidth;
-      context.stroke();
-    }
-  };
 
-  // Draw hexagon
-  const drawHexagon = (context, obj) => {
-    const centerX = obj.x + obj.size;
-    const centerY = obj.y + obj.size;
-    const radius = obj.size;
+      const lines = [];
 
-    context.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * Math.PI) / 3;
-      const x = centerX + Math.cos(angle) * radius;
-      const y = centerY + Math.sin(angle) * radius;
-
-      if (i === 0) {
-        context.moveTo(x, y);
-      } else {
-        context.lineTo(x, y);
+      for (let i = 0; i <= width; i += gridSize) {
+        const line = new fabric.Line([i, 0, i, height], {
+          stroke: color,
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+        });
+        lines.push(line);
       }
+
+      for (let i = 0; i <= height; i += gridSize) {
+        const line = new fabric.Line([0, i, width, i], {
+          stroke: color,
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+        });
+        lines.push(line);
+      }
+      gridLinesRef.current = lines;
+      lines.forEach(line => canvas.add(line));
+
+      canvas._objects = [...lines, ...canvas._objects.filter(obj => !lines.includes(obj))];
+      canvas.renderAll();
+    };
+
+    if (canvas) {
+      drawFabricGrid(canvas, 20, darkMode ? '#444' : '#ddd');
     }
-    context.closePath();
-    context.fillStyle = obj.fill;
-    context.fill();
-    if (obj.strokeWidth > 0) {
-      context.strokeStyle = obj.stroke;
-      context.lineWidth = obj.strokeWidth;
-      context.stroke();
-    }
-  };
 
-  // Draw selection handles
-  const drawSelectionHandles = (context, obj) => {
-    const bounds = getObjectBounds(obj);
-    const handleSize = 8;
+  }, [gridVisible, darkMode]);
 
-    context.fillStyle = '#3b82f6';
-    context.strokeStyle = '#ffffff';
-    context.lineWidth = 2;
 
-    // Corner handles
-    const handles = [
-      { x: bounds.x - handleSize / 2, y: bounds.y - handleSize / 2 },
-      { x: bounds.x + bounds.width - handleSize / 2, y: bounds.y - handleSize / 2 },
-      { x: bounds.x + bounds.width - handleSize / 2, y: bounds.y + bounds.height - handleSize / 2 },
-      { x: bounds.x - handleSize / 2, y: bounds.y + bounds.height - handleSize / 2 }
-    ];
 
-    handles.forEach(handle => {
-      context.fillRect(handle.x, handle.y, handleSize, handleSize);
-      context.strokeRect(handle.x, handle.y, handleSize, handleSize);
-    });
-  };
+  const handleMouseDown = (e) => {
+    if (activeTool === 'brush' || activeTool === 'eraser') return;
 
-  // Draw preview
-  const drawPreview = (context) => {
-    context.save();
-    context.setLineDash([5, 5]);
-    context.strokeStyle = color;
-    context.fillStyle = fillContextColor;
-    context.lineWidth = strokeWidth;
+    const canvas = fabricCanvasRef.current;
+    const pointer = canvas.getPointer(e.e);
+    const id = `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const name = activeTool + '-' + id;
+    const commonProps = {
+      left: pointer.x,
+      top: pointer.y,
+      stroke: color,
+      fill: activeTool === 'line' ? null : fillColor,
+      strokeWidth,
+      selectable: true,
+      hasControls: true,
+      id,
+      name: name,
+    };
 
-    const width = currentPos.x - startPos.x;
-    const height = currentPos.y - startPos.y;
+    setStartPos(pointer);
+    let shape;
 
     switch (activeTool) {
       case 'rectangle':
-        context.strokeRect(startPos.x, startPos.y, width, height);
+        shape = new fabric.Rect({
+          ...commonProps,
+          width: 0,
+          height: 0,
+        });
         break;
       case 'circle':
-        const radius = Math.abs(width) / 2;
-        context.beginPath();
-        context.arc(startPos.x + width / 2, startPos.y + height / 2, radius, 0, 2 * Math.PI);
-        context.stroke();
+        shape = new fabric.Circle({
+          ...commonProps,
+          radius: 1,
+          originX: 'center',
+          originY: 'center',
+        });
+        break;
+      case 'triangle':
+        shape = new fabric.Triangle({
+          ...commonProps,
+          width: 0,
+          height: 0,
+        });
         break;
       case 'line':
-        context.beginPath();
-        context.moveTo(startPos.x, startPos.y);
-        context.lineTo(currentPos.x, currentPos.y);
-        context.stroke();
+        shape = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
+          ...commonProps,
+        });
         break;
-      case 'triangle':
-        context.beginPath();
-        context.moveTo(startPos.x + width / 2, startPos.y);
-        context.lineTo(startPos.x, startPos.y + height);
-        context.lineTo(startPos.x + width, startPos.y + height);
-        context.closePath();
-        context.stroke();
-        break;
-    }
-
-    context.restore();
-  };
-
-  // Get object bounds
-  const getObjectBounds = (obj) => {
-    switch (obj.type) {
-      case 'rectangle':
-        return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
-      case 'circle':
-        return { x: obj.x, y: obj.y, width: obj.radius * 2, height: obj.radius * 2 };
       case 'text':
-        ctx.font = `${obj.fontSize}px ${obj.fontFamily}`;
-        const metrics = ctx.measureText(obj.text);
-        return {
-          x: obj.x,
-          y: obj.y - obj.fontSize,
-          width: metrics.width,
-          height: obj.fontSize
-        };
-      case 'triangle':
-        return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+        shape = new fabric.Textbox('Click to edit', {
+          ...commonProps,
+          fontFamily,
+          fontSize,
+          width: 200,
+        });
+        break;
       case 'star':
       case 'hexagon':
-        return { x: obj.x, y: obj.y, width: obj.size * 2, height: obj.size * 2 };
-      case 'line':
-        return {
-          x: Math.min(obj.x1, obj.x2),
-          y: Math.min(obj.y1, obj.y2),
-          width: Math.abs(obj.x2 - obj.x1),
-          height: Math.abs(obj.y2 - obj.y1)
-        };
-      default:
-        return { x: obj.x || 0, y: obj.y || 0, width: 100, height: 100 };
+        const sides = activeTool === 'star' ? 5 : 6;
+        const initialRadius = 1; // temporary, will be updated on move
+        shape = new fabric.Polygon(
+          createRegularPolygonPoints(sides, initialRadius),
+          {
+            ...commonProps,
+            originX: 'center',
+            originY: 'center',
+          }
+        );
+        break;
+
     }
-  };
 
-  // Mouse event handlers
-  // Mouse event handlers
-  const handleMouseDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setStartPos({ x, y });
-    setCurrentPos({ x, y });
-
-    if (activeTool === 'select') {
-      const clickedObject = findObjectAtPosition(x, y);
-      if (clickedObject) {
-        setSelectedObject(clickedObject);
-        const bounds = getObjectBounds(clickedObject);
-        setDragOffset({ x: x - bounds.x, y: y - bounds.y });
-      } else {
-        setSelectedObject(null);
-      }
-    } else {
-      setIsDrawing(true);
-
-      if (activeTool === 'brush' || activeTool === 'eraser') {
-        const newStroke = {
-          id: Date.now(),
-          type: activeTool,
-          points: [{ x, y }],
-          stroke: activeTool === 'eraser' ? 'transparent' : color,
-          strokeWidth: brushSize,
-          visible: true
-        };
-        setObjects(prev => [...prev, newStroke]);
-      }
+    if (shape) {
+      canvas.add(shape);
+      canvas.setActiveObject(shape);
+      setCurrentShape(shape);
+      objectMapRef.current[id] = shape;
+      setShapeVersion(shapeVersion + 1);
     }
+
+    setIsDrawing(true);
   };
 
   const handleMouseMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setMousePos({ x, y });
+    if (!isDrawing || !currentShape) return;
 
+    const canvas = fabricCanvasRef.current;
+    const pointer = canvas.getPointer(e.e);
+    const shape = currentShape;
 
-    setCurrentPos({ x, y });
+    switch (activeTool) {
+      case 'rectangle':
+      case 'triangle':
+        shape.set({
+          width: Math.abs(pointer.x - startPos.x),
+          height: Math.abs(pointer.y - startPos.y),
+          left: Math.min(pointer.x, startPos.x),
+          top: Math.min(pointer.y, startPos.y),
+        });
+        break;
+      case 'circle':
+        const dx = pointer.x - startPos.x;
+        const dy = pointer.y - startPos.y;
+        const radius = Math.sqrt(dx * dx + dy * dy) / 2;
+        shape.set({
+          radius,
+          left: startPos.x,
+          top: startPos.y,
+        });
+        break;
+      case 'line':
+        shape.set({
+          x2: pointer.x,
+          y2: pointer.y,
+        });
+        break;
+      case 'star':
+      case 'hexagon':
+        const dxh = pointer.x - startPos.x;
+        const dyh = pointer.y - startPos.y;
+        const radiush = Math.sqrt(dxh * dxh + dyh * dyh) / 2;
 
-    if (isDrawing && (activeTool === 'brush' || activeTool === 'eraser')) {
-      setObjects(prev => {
-        const newObjects = [...prev];
-        const lastObject = newObjects[newObjects.length - 1];
-        if (lastObject && lastObject.type === activeTool) {
-          lastObject.points.push({ x, y });
-        }
-        return newObjects;
-      });
-      renderCanvas();
+        const updatedPoints = createRegularPolygonPoints(
+          activeTool === 'star' ? 5 : 6,
+          radiush
+        );
+
+        shape.set({
+          points: updatedPoints,
+          left: startPos.x,
+          top: startPos.y,
+        });
+        break;
+
     }
-
-    if (!isDrawing && selectedObject && activeTool === 'select' && e.buttons === 1) {
-      const newX = x - dragOffset.x;
-      const newY = y - dragOffset.y;
-
-      setObjects(prev =>
-        prev.map(obj =>
-          obj.id === selectedObject.id
-            ? { ...obj, x: newX, y: newY }
-            : obj
-        )
-      );
-
-      setSelectedObject(prev => ({ ...prev, x: newX, y: newY }));
-      renderCanvas();
-    }
+    canvas.renderAll();
   };
 
+  // Finalize shape
   const handleMouseUp = () => {
-    if (isDrawing && activeTool !== 'brush' && activeTool !== 'eraser') {
-      const width = currentPos.x - startPos.x;
-      const height = currentPos.y - startPos.y;
-
-      let newObject = {
-        id: Date.now(),
-        visible: true,
-        stroke: color,
-        fill: fillColor,
-        strokeWidth: strokeWidth
-      };
-
-      switch (activeTool) {
-        case 'rectangle':
-          newObject = {
-            ...newObject,
-            type: 'rectangle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            width: Math.abs(width),
-            height: Math.abs(height)
-          };
-          break;
-        case 'circle':
-          const radius = Math.abs(width) / 2;
-          newObject = {
-            ...newObject,
-            type: 'circle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            radius
-          };
-          break;
-        case 'triangle':
-          newObject = {
-            ...newObject,
-            type: 'triangle',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            width: Math.abs(width),
-            height: Math.abs(height)
-          };
-          break;
-        case 'line':
-          newObject = {
-            ...newObject,
-            type: 'line',
-            x1: startPos.x,
-            y1: startPos.y,
-            x2: currentPos.x,
-            y2: currentPos.y
-          };
-          break;
-        case 'star':
-          newObject = {
-            ...newObject,
-            type: 'star',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            size: Math.abs(width) / 2
-          };
-          break;
-        case 'hexagon':
-          newObject = {
-            ...newObject,
-            type: 'hexagon',
-            x: Math.min(startPos.x, currentPos.x),
-            y: Math.min(startPos.y, currentPos.y),
-            size: Math.abs(width) / 2
-          };
-          break;
-      }
-
-      if (Math.abs(width) > 5 || Math.abs(height) > 5) {
-        setObjects(prev => [...prev, newObject]);
-        saveToHistory();
-      }
-    }
-
     setIsDrawing(false);
-    renderCanvas(); // ✅ Always re-render on mouse up
+    setCurrentShape(null);
   };
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    canvas.on('mouse:down', handleMouseDown);
+    canvas.on('mouse:move', handleMouseMove);
+    canvas.on('mouse:up', handleMouseUp);
 
-  // Find object at position
-  const findObjectAtPosition = (x, y) => {
-    for (let i = objects.length - 1; i >= 0; i--) {
-      const obj = objects[i];
-      const bounds = getObjectBounds(obj);
-
-      if (x >= bounds.x && x <= bounds.x + bounds.width &&
-        y >= bounds.y && y <= bounds.y + bounds.height) {
-        return obj;
-      }
-    }
-    return null;
-  };
-
-  // Add text
-  const addText = () => {
-    const newText = {
-      id: Date.now(),
-      type: 'text',
-      x: 100,
-      y: 100,
-      text: 'Double click to edit',
-      fontSize: fontSize,
-      fontFamily: fontFamily,
-      fill: color,
-      visible: true
+    return () => {
+      canvas.off('mouse:down', handleMouseDown);
+      canvas.off('mouse:move', handleMouseMove);
+      canvas.off('mouse:up', handleMouseUp);
     };
-    setObjects(prev => [...prev, newText]);
-    setSelectedObject(newText);
-    saveToHistory();
-    renderCanvas();
-  };
+  }, [activeTool, isDrawing, currentShape, startPos]);
 
+
+
+  function createRegularPolygonPoints(sides, radius) {
+    const angle = (2 * Math.PI) / sides;
+    const points = [];
+    for (let i = 0; i < sides; i++) {
+      points.push({
+        x: radius * Math.cos(i * angle),
+        y: radius * Math.sin(i * angle)
+      });
+    }
+    return points;
+  }
+  useEffect(() => {
+    const list = Object.entries(objectMapRef.current).map(([id, obj]) => ({
+      id,
+      type: obj.type,
+      name: obj.name,
+      visible: obj.visible ?? true,
+    }));
+    setObjects(list);
+  }, [shapeVersion]);
   // History management
-  const saveToHistory = () => {
+  const saveToHistory = (canvas) => {
+    const json = canvas.toJSON();
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(JSON.stringify(objects));
+    newHistory.push(JSON.stringify(json));
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
+  };
+  const loadFromHistory = (index) => {
+    if (index >= 0 && index < history.length) {
+      const canvas = canvasRef.current;
+      canvas.loadFromJSON(JSON.parse(history[index]), () => {
+        canvas.renderAll();
+      });
+    }
   };
 
   const undo = () => {
     if (historyIndex > 0) {
-      const prevState = JSON.parse(history[historyIndex - 1]);
-      setObjects(prevState);
-      setHistoryIndex(historyIndex - 1);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      loadFromHistory(newIndex);
       setSelectedObject(null);
     }
   };
 
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      const nextState = JSON.parse(history[historyIndex + 1]);
-      setObjects(nextState);
-      setHistoryIndex(historyIndex + 1);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      loadFromHistory(newIndex);
       setSelectedObject(null);
     }
   };
 
-  // Object operations
-  const deleteAll = () => {
-    setObjects([]);              // Clear all drawn objects
-    setSelectedObject(null);     // Clear any selection
-    setClipboard(null);          // Optional: clear clipboard
-    saveToHistory();             // Optional: save action to undo stack
-    renderCanvas();              // Re-render canvas
-  };
 
 
-  const duplicateSelected = () => {
-    if (selectedObject) {
-      const newObject = {
-        ...selectedObject,
-        id: Date.now(),
-        x: selectedObject.x + 20,
-        y: selectedObject.y + 20
-      };
-      setObjects(prev => [...prev, newObject]);
-      setSelectedObject(newObject);
-      saveToHistory();
-      renderCanvas();
-    }
-  };
   const copyAll = () => {
     if (objects.length > 0) {
       const copied = objects.map(obj => ({
@@ -704,67 +447,6 @@ const AdvancedCanvasEditor = () => {
   };
 
 
-
-  const paste = () => {
-    if (clipboard && Array.isArray(clipboard)) {
-      const offset = 20;
-      const newObjects = clipboard.map(obj => {
-        const newObj = { ...obj, id: Date.now() + Math.random() };
-
-        if (obj.points) {
-          newObj.points = obj.points.map(p => ({
-            x: p.x + offset,
-            y: p.y + offset
-          }));
-        } else if ('x' in obj && 'y' in obj) {
-          newObj.x += offset;
-          newObj.y += offset;
-        } else if ('x1' in obj && 'x2' in obj) {
-          newObj.x1 += offset;
-          newObj.y1 += offset;
-          newObj.x2 += offset;
-          newObj.y2 += offset;
-        }
-
-        return newObj;
-      });
-
-      setObjects(prev => [...prev, ...newObjects]);
-      setSelectedObject(null); // or set to first pasted item if needed
-      saveToHistory();
-      renderCanvas();
-    }
-  };
-
-
-  // Layer operations
-  const toggleObjectVisibility = (obj) => {
-    setObjects(prev => prev.map(o =>
-      o.id === obj.id ? { ...o, visible: !o.visible } : o
-    ));
-    renderCanvas();
-  };
-
-  const bringToFront = () => {
-    if (selectedObject) {
-      setObjects(prev => {
-        const filtered = prev.filter(obj => obj.id !== selectedObject.id);
-        return [...filtered, selectedObject];
-      });
-      renderCanvas();
-    }
-  };
-
-  const sendToBack = () => {
-    if (selectedObject) {
-      setObjects(prev => {
-        const filtered = prev.filter(obj => obj.id !== selectedObject.id);
-        return [selectedObject, ...filtered];
-      });
-      renderCanvas();
-    }
-  };
-
   // Canvas operations
   const zoomIn = () => {
     const newZoom = Math.min(zoom + 25, 500);
@@ -775,17 +457,6 @@ const AdvancedCanvasEditor = () => {
     const newZoom = Math.max(zoom - 25, 25);
     setZoom(newZoom);
   };
-  const newFile = () => {
-    if (window.confirm("Start a new file? This will clear all your work.")) {
-      setObjects([]);               // Clear all drawn objects
-      setSelectedObject(null);      // Deselect anything
-      setClipboard(null);           // Clear clipboard
-      setHistory([]);               // Reset undo history
-      // setRedoStack([]);             // Reset redo stack
-      renderCanvas();               // Re-render the cleared canvas
-    }
-  };
-
 
   const resetZoom = () => {
     setZoom(100);
@@ -793,25 +464,17 @@ const AdvancedCanvasEditor = () => {
 
   const exportCanvas = (format = 'png') => {
     const canvas = canvasRef.current;
+    gridLinesRef.current.forEach(line => line.set({ visible: false }));
+    fabricCanvasRef.current.renderAll();
     const dataURL = canvas.toDataURL(`image/${format}`, 1.0);
     const link = document.createElement('a');
     link.download = `canvas-export.${format}`;
     link.href = dataURL;
     link.click();
+    gridLinesRef.current.forEach(line => line.set({ visible: true }));
+    fabricCanvasRef.current.renderAll();
   };
 
-  const clearCanvas = () => {
-    setObjects([]);
-    setSelectedObject(null);
-    saveToHistory();
-    renderCanvas();
-  };
-
-  // Re-render when objects change
-  useEffect(() => {
-
-    renderCanvas();
-  }, [objects, selectedObject, renderCanvas]);
 
   // UI Components
   const ToolButton = ({ icon: Icon, isActive, onClick, title, disabled = false }) => (
@@ -852,31 +515,83 @@ const AdvancedCanvasEditor = () => {
       <Icon size={12} />
     </button>
   );
-  // const ColorPicker = ({ value, onChange, label }) => (
-  //   <div className="flex flex-col space-y-2">
-  //     <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-  //       {label}
-  //     </label>
-  //     <div className="flex items-center space-x-2">
-  //       <input
-  //         type="color"
-  //         value={value}
-  //         onChange={(e) => onChange(e.target.value)}
-  //         className="w-8 h-8 rounded border cursor-pointer"
-  //       />
-  //       <div className="flex flex-wrap gap-1">
-  //         {colorPresets.slice(0, 8).map(color => (
-  //           <button
-  //             key={color}
-  //             className="w-4 h-4 rounded border hover:scale-110 transition-transform"
-  //             style={{ backgroundColor: color }}
-  //             onClick={() => onChange(color)}
-  //           />
-  //         ))}
-  //       </div>
-  //     </div>
-  //   </div>
-  // );
+  const resetCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    canvas.clear();
+    canvas.renderAll();
+  }
+
+  const selectObjectById = (id) => {
+    if (selectedObject) {
+      const canvas = fabricCanvasRef.current;
+      const obj = objectMapRef.current[id];
+
+
+      if (canvas && obj) {
+        canvas.discardActiveObject();
+        canvas.setActiveObject(obj);
+        canvas.renderAll();
+        setSelectedObject(obj);
+        setActiveTool('select')
+      }
+    }
+  };
+
+  const toggleObjectVisibility = (id) => {
+    const canvas = fabricCanvasRef.current;
+    const obj = objectMapRef.current[id];
+
+    if (canvas && obj) {
+      obj.set('visible', !obj.visible);
+      obj.dirty = true;
+      canvas.renderAll();
+      setShapeVersion(shapeVersion + 1);
+    }
+  };
+  const handleNameUpdate = (id, newName) => {
+    const obj = objectMapRef.current[id];
+    if (obj) {
+      obj.name = newName;
+      setShapeVersion(shapeVersion + 1);
+    }
+  };
+  const updateObjectProp = (prop, value) => {
+    if (!selectedObject) return;
+    const selectedObjectUsage = objectMapRef.current[selectedObject.id]
+    selectedObjectUsage.set(prop, value);
+    if (['width', 'height', 'left', 'top', 'radius'].includes(prop)) {
+      selectedObjectUsage.setCoords();
+    }
+
+    fabricCanvasRef.current.renderAll();
+    setSelectedObject({ ...selectedObjectUsage }); // trigger re-render
+  };
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    canvas.isDrawingMode = activeTool === 'brush';
+
+    if (activeTool === 'brush') {
+      switch (brushType) {
+        case 'Spray':
+          canvas.freeDrawingBrush = new fabric.SprayBrush(canvas);
+          break;
+        case 'Circle':
+          canvas.freeDrawingBrush = new fabric.CircleBrush(canvas);
+          break;
+        case 'Pencil':
+        default:
+          canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      }
+
+      canvas.freeDrawingBrush.color = brushColor;
+      canvas.freeDrawingBrush.width = brushSize;
+    }
+  }, [activeTool, brushType, brushColor, brushSize]);
+
 
   return (
     <div className={`flex flex-col h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -885,26 +600,13 @@ const AdvancedCanvasEditor = () => {
         <div className="flex items-center space-x-4">
           {/* File Operations */}
           <div className="flex items-center space-x-1">
-            <ToolButton
-              icon={File}
-              onClick={newFile}
-              title="New File"
+            <PencilRuler className="w-8 h-8 text-blue-500" />
+            <img
+              alt="Logo"
+              src={`${process.env.PUBLIC_URL}/assets/images/Logo.png`}
+              className='w-44'
             />
-            <ToolButton
-              icon={Folder}
-              onClick={() => alert("Open functionality not implemented yet.")}
-              title="Open"
-            />
-            <ToolButton
-              icon={Save}
-              onClick={() => exportCanvas('png')}
-              title="Export PNG"
-            />
-            <ToolButton
-              icon={Download}
-              onClick={() => exportCanvas('svg')}
-              title="Export SVG"
-            />
+            <h1 className={`font-semibold text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>Design Tool</h1>
           </div>
 
 
@@ -914,7 +616,7 @@ const AdvancedCanvasEditor = () => {
           <div className="flex items-center space-x-1">
             <ToolButton
               icon={Undo}
-              onClick={undo}
+              onClick={() => undo()}
               title="Undo (Ctrl+Z)"
               disabled={historyIndex <= 0}
             />
@@ -927,7 +629,7 @@ const AdvancedCanvasEditor = () => {
             />
             <ToolButton
               icon={Trash2} // Or use a different icon like Lucide's `Trash`
-              onClick={deleteAll}
+              // onClick={deleteAll}
               title="Delete All"
             />
 
@@ -940,7 +642,7 @@ const AdvancedCanvasEditor = () => {
 
             <ToolButton
               icon={Clipboard}
-              onClick={paste}
+              // onClick={paste}
               title="Paste"
               disabled={!clipboard || clipboard.length === 0}
             />
@@ -966,9 +668,7 @@ const AdvancedCanvasEditor = () => {
             <ToolButton
               icon={RefreshCw}
               onClick={() => {
-                setObjects([]);
-                setSelectedObject(null);
-                renderCanvas();
+                resetCanvas();
               }}
               title="Reset Canvas"
             />
@@ -976,10 +676,6 @@ const AdvancedCanvasEditor = () => {
           </div>
         </div>
 
-        {/* Document Title */}
-        <div className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          Advanced Canvas Editor
-        </div>
 
         {/* Right Controls */}
         <div className="flex items-center space-x-2">
@@ -989,7 +685,16 @@ const AdvancedCanvasEditor = () => {
             title="Toggle Dark Mode"
           />
           <ToolButton icon={Share2} onClick={() => { }} title="Share" />
-          <ToolButton icon={Settings} onClick={() => { }} title="Settings" />
+          <ToolButton
+            icon={Save}
+            onClick={() => exportCanvas('png')}
+            title="Export PNG"
+          />
+          <ToolButton
+            icon={Download}
+            onClick={() => exportCanvas('svg')}
+            title="Export SVG"
+          />
         </div>
       </div>
 
@@ -1000,7 +705,7 @@ const AdvancedCanvasEditor = () => {
           <ToolButton
             icon={MousePointer}
             isActive={activeTool === 'select'}
-            onClick={() =>{ activeTool === 'select' ? setActiveTool('') : setActiveTool('select') }}
+            onClick={() => { activeTool === 'select' ? setActiveTool('') : setActiveTool('select') }}
             title="Select Tool (V)"
           />
 
@@ -1014,7 +719,7 @@ const AdvancedCanvasEditor = () => {
                 setActiveTool("");
               } else {
                 setActiveTool('text');
-                addText();
+                // addText();
               }
             }}
             title="Text Tool (T)"
@@ -1065,11 +770,33 @@ const AdvancedCanvasEditor = () => {
           <div className={`border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} my-2`} />
 
           <ToolButton
-            icon={Droplet}
+            icon={Paintbrush2}
             isActive={activeTool === 'brush'}
-            onClick={() => setActiveTool('brush')}
+            onClick={() => { activeTool === 'brush' ? setActiveTool('') : setActiveTool('brush') }}
             title="Brush"
           />
+          {activeTool === 'brush' && (
+            <>
+              <ToolButton
+                icon={Pencil}
+                isActive={brushType === 'Pencil'}
+                onClick={() => { brushType === 'Pencil' ? setBrushType('') : setBrushType('Pencil') }}
+                title="Pencil"
+              />
+              <ToolButton
+                icon={Sparkles}
+                isActive={brushType === 'Spray'}
+                onClick={() => { brushType === 'Spray' ? setBrushType('') : setBrushType('Spray') }}
+                title="Spray"
+              />
+              <ToolButton
+                icon={Circle}
+                isActive={brushType === 'Circle'}
+                onClick={() => { brushType === 'Cirlce' ? setBrushType('') : setBrushType('Circle') }}
+                title="Circle"
+              />
+            </>
+          )}
 
           <ToolButton
             icon={Eraser}
@@ -1086,7 +813,7 @@ const AdvancedCanvasEditor = () => {
           >
             <canvas
               ref={canvasRef}
-              className={`shadow-lg ${darkMode ? 'bg-gray-900' : 'bg-white'} ${activeTool === 'eraser'
+              className={`shadow-lg ${activeTool === 'eraser'
                 ? 'cursor-none'
                 : activeTool === 'brush'
                   ? 'cursor-default'
@@ -1097,7 +824,6 @@ const AdvancedCanvasEditor = () => {
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
             />
 
             {/* Eraser preview */}
@@ -1138,11 +864,183 @@ const AdvancedCanvasEditor = () => {
         <div className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-l w-64 flex flex-col`}>
           {/* Properties Panel */}
           <div className={`p-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'} border-b`}>
-            <h3 className={`font-medium mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              Properties
-            </h3>
+            {selectedObject ? (
+              <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2">
+                <h3 className={`font-medium mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Properties: {selectedObject?.name || selectedObject.type}
+                </h3>
+                {/* Name */}
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Name</label>
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    onBlur={() => {
+                      handleNameUpdate(selectedObject.id, nameInput);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleNameUpdate(selectedObject.id, nameInput);
+                      }
+                    }}
+                    className="border p-2 rounded w-full"
+                  />
+                </div>
+                {/* Position */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>X</label>
+                    <input
+                      type="number"
+                      value={selectedObject.left ?? 0}
+                      onChange={(e) => updateObjectProp('left', parseFloat(e.target.value))}
+                      className="border p-2 rounded w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Y</label>
+                    <input
+                      type="number"
+                      value={selectedObject.top ?? 0}
+                      onChange={(e) => updateObjectProp('top', parseFloat(e.target.value))}
+                      className="border p-2 rounded w-full"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-4">
+                {/* Size */}
+                {selectedObject.type === 'circle' ? (
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Radius</label>
+                    <input
+                      type="number"
+                      value={selectedObject.radius ?? 0}
+                      onChange={(e) => updateObjectProp('radius', parseFloat(e.target.value))}
+                      className="border p-2 rounded w-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Width</label>
+                      <input
+                        type="number"
+                        value={selectedObject.width ?? 0}
+                        onChange={(e) => updateObjectProp('width', parseFloat(e.target.value))}
+                        className="border p-2 rounded w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Height</label>
+                      <input
+                        type="number"
+                        value={selectedObject.height ?? 0}
+                        onChange={(e) => updateObjectProp('height', parseFloat(e.target.value))}
+                        className="border p-2 rounded w-full"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Fill color */}
+                {selectedObject.type !== 'path' && (<div>
+                  <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Fill Color</label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="color"
+                      value={selectedObject.fill || '#000000'}
+                      onChange={(e) => updateObjectProp('fill', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      value={selectedObject.fill || '#000000'}
+                      onChange={(e) => updateObjectProp('fill', e.target.value)}
+                      className="border p-2 rounded w-full"
+                    />
+                  </div>
+                </div>)}
+
+                {/* Stroke color & width */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Stroke</label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="color"
+                      value={selectedObject.stroke || '#000000'}
+                      onChange={(e) => updateObjectProp('stroke', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      value={selectedObject.stroke || '#000000'}
+                      onChange={(e) => updateObjectProp('stroke', e.target.value)}
+                      className="border p-2 rounded w-full"
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <label className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Stroke Width</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={selectedObject.strokeWidth ?? 1}
+                      onChange={(e) => updateObjectProp('strokeWidth', parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {selectedObject.strokeWidth ?? 1}px
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rotation */}
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Rotation (°)</label>
+                  <input
+                    type="number"
+                    value={selectedObject.angle ?? 0}
+                    onChange={(e) => updateObjectProp('angle', parseFloat(e.target.value))}
+                    className="border p-2 rounded w-full"
+                  />
+                </div>
+
+                {/* Opacity */}
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Opacity</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={selectedObject.opacity ?? 1}
+                    onChange={(e) => updateObjectProp('opacity', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {Math.round((selectedObject.opacity ?? 1) * 100)}%
+                  </div>
+                </div>
+
+                {/* Lock toggle */}
+                <div className="flex items-center space-x-2 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedObject.lockMovementX && selectedObject.lockMovementY}
+                    onChange={(e) => {
+                      const locked = e.target.checked;
+                      updateObjectProp('lockMovementX', locked);
+                      updateObjectProp('lockMovementY', locked);
+                      updateObjectProp('selectable', !locked);
+                      updateObjectProp('hasControls', !locked);
+                    }}
+                  />
+                  <label className={`text-sm ${darkMode ? 'text-white' : 'text-gray-700'}`}>Lock Position</label>
+                </div>
+              </div>
+            ) : (<div className="space-y-4">
+              <h3 className={`font-medium mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Properties
+              </h3>
               <label className={`block mb-2 font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>Stroke Color</label>
               <div className='flex items-center space-x-4'>
                 <input
@@ -1166,26 +1064,15 @@ const AdvancedCanvasEditor = () => {
                   value={selectedObject ? selectedObject.fill : fillColor}
                   onChange={(e) => {
                     const newColor = e.target.value;
-
-                    if (selectedObject || activeTool !== "") {
-                      setObjects(prev =>
-                        prev.map(obj =>
-                          obj.id === selectedObject.id ? { ...obj, fill: newColor } : obj
-                        )
-                      );
-                      setSelectedObject(prev =>
-                        prev ? { ...prev, fill: newColor } : null
-                      );
-                      setFillContextColor(newColor);
-                    } else {
+                    if (activeTool !== "") {
                       setFillColor(newColor);
-                      if (activeTool === "") {
-                         renderCanvas()
-                      }
+                    } else {
+                      const canvas = fabricCanvasRef.current;
+                      canvas.backgroundColor = newColor;
+                      canvas.renderAll();
                     }
                   }}
                 />
-
                 <input
                   type="text"
                   value={fillColor}
@@ -1308,7 +1195,7 @@ const AdvancedCanvasEditor = () => {
                   </div>
                 </>
               ) : null}
-            </div>
+            </div>)}
           </div>
 
           {/* Layers Panel */}
@@ -1334,21 +1221,22 @@ const AdvancedCanvasEditor = () => {
                           : 'hover:bg-gray-100'
                         } cursor-pointer`}
                       onClick={() => {
-                        setSelectedObject(selectedObject === obj ? null : obj);
-                        if (selectedObject) {
-                          // console.log(selectedObject)
-                          // console.log(selectedObject.toObject());
+                        if (selectedObject?.id === obj.id) {
+                          setSelectedObject(null);
+                          fabricCanvasRef.current.discardActiveObject();
+                          fabricCanvasRef.current.renderAll();
                         } else {
-                          console.warn('No object is selected.');
+                          setSelectedObject(obj);
+                          selectObjectById(obj.id);
                         }
-
                       }}
+
                     >
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleObjectVisibility(obj);
+                            toggleObjectVisibility(obj.id);
                           }}
                           className={`p-1 rounded ${selectedObject?.id === obj.id
                             ? `${darkMode ? 'text-gray bg-gray-700' : 'text-black bg-white'} hover:bg-blue-700`
@@ -1360,34 +1248,36 @@ const AdvancedCanvasEditor = () => {
                           {obj.visible ? <Eye className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'hover:bg-gray-100'}`} size={14} /> :
                             <EyeOff className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-100'}`} size={14} />}
                         </button>
-                        <span className={`text-sm truncate ${darkMode ? 'text-gray-300' : 'text-black-600'}`}>
-                          {obj.type.charAt(0).toUpperCase() + obj.type.slice(1)} {obj.id}
+                        <span
+                          className={`text-sm truncate cursor-text ${darkMode ? 'text-gray-300' : 'text-black-600'}`}
+                        >
+                          {obj.name || `${obj.type.charAt(0).toUpperCase() + obj.type.slice(1)} ${obj.id}`}
                         </span>
+                        {selectedObject?.id === obj.id && (
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // bringToFront();
+                              }}
+                              className={`p-1 rounded hover:bg-blue-700  ${darkMode && 'text-black bg-gray-700'} text-white`}
+                              title="Bring to front"
+                            >
+                              <ChevronUp className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'text-black bg-white hover:bg-gray-100'}`} size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // sendToBack();
+                              }}
+                              className={`p-1 rounded ${darkMode && 'bg-gray-700'} hover:bg-blue-700 text-white`}
+                              title="Send to back"
+                            >
+                              <ChevronDown className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'text-black bg-white hover:bg-gray-100'}`} size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      {selectedObject?.id === obj.id && (
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              bringToFront();
-                            }}
-                            className={`p-1 rounded hover:bg-blue-700  ${darkMode && 'text-black bg-gray-700'} text-white`}
-                            title="Bring to front"
-                          >
-                            <ChevronUp className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'text-black bg-white hover:bg-gray-100'}`} size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              sendToBack();
-                            }}
-                            className={`p-1 rounded ${darkMode && 'bg-gray-700'} hover:bg-blue-700 text-white`}
-                            title="Send to back"
-                          >
-                            <ChevronDown className={`${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'text-black bg-white hover:bg-gray-100'}`} size={14} />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
