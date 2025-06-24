@@ -39,6 +39,7 @@ import {
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
 import { useLocation } from 'react-router-dom';
+import Message from '../components/Message'
 
 const RichTextEditor = () => {
   const location = useLocation();
@@ -57,6 +58,7 @@ const RichTextEditor = () => {
     () => new WebsocketProvider(process.env.REACT_APP_SOCKET_URL, session_id, ydoc),
     [ydoc]
   )
+  const yChatArray = ydoc.getArray('chat');
   const colors = [
     '#958DF1',
     '#F98181',
@@ -933,6 +935,9 @@ const RichTextEditor = () => {
             <span><kbd className={`px-1 py-0.5 ${buttonClasses} rounded text-xs`}>Tab</kbd> Indent in Code</span>
           </div>
         </details>
+      </div>
+      <div className="fixed bottom-4 right-4 z-50">
+        <Message darkMode={isDarkMode} yChatArray={yChatArray} username={name}/>
       </div>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
