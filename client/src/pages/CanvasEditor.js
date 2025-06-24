@@ -74,8 +74,6 @@ const AdvancedCanvasEditor = () => {
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [objects, setObjects] = useState([]);
   const [selectedObject, setSelectedObject] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [zoom, setZoom] = useState(100);
   const [gridVisible, setGridVisible] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -94,10 +92,11 @@ const AdvancedCanvasEditor = () => {
   const [nameInput, setNameInput] = useState('');
   const [brushType, setBrushType] = useState('Pencil'); // Pencil, Spray, Circle
   const [brushColor, setBrushColor] = useState('#000000');
-
-
-
-
+  const [selectedObjects, setSelectedObjects] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyRef = useRef([]);
+  const historyIndexRef = useRef(-1);
 
   useEffect(() => {
     const canvas = new fabric.Canvas(canvasRef.current, {
@@ -118,13 +117,22 @@ const AdvancedCanvasEditor = () => {
     });
     fabricCanvasRef.current = canvas;
     // Add event listeners
-    canvas.on('object:added', () => saveToHistory(canvas));
-    canvas.on('object:modified', () => saveToHistory(canvas));
-    canvas.on('object:removed', () => saveToHistory(canvas));
     const handleSelect = (e) => {
       if (e.selected && e.selected.length === 1) {
         const obj = objectMapRef.current[e.selected[0].id];
         setSelectedObject(obj);
+        setSelectedObjects([]);
+      } else if (e.selected && e.selected.length > 1) {
+        setSelectedObject(null);
+
+        const objects = e.selected.map((item) => {
+          return objectMapRef.current[item.id];
+        });
+
+        setSelectedObjects(objects);
+      } else {
+        setSelectedObject(null);
+        setSelectedObjects([]);
       }
     };
 
@@ -138,7 +146,7 @@ const AdvancedCanvasEditor = () => {
       });
     });
     canvas.renderAll();
-    saveToHistory(canvas);
+    saveToHistory();
     return () => {
       canvas.dispose();
     };
@@ -298,6 +306,7 @@ const AdvancedCanvasEditor = () => {
       canvas.setActiveObject(shape);
       setCurrentShape(shape);
       objectMapRef.current[id] = shape;
+      saveToHistory();
       setShapeVersion(shapeVersion + 1);
     }
 
@@ -400,50 +409,216 @@ const AdvancedCanvasEditor = () => {
     setObjects(list);
   }, [shapeVersion]);
   // History management
-  const saveToHistory = (canvas) => {
-    const json = canvas.toJSON();
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(JSON.stringify(json));
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-  const loadFromHistory = (index) => {
-    if (index >= 0 && index < history.length) {
-      const canvas = canvasRef.current;
-      canvas.loadFromJSON(JSON.parse(history[index]), () => {
-        canvas.renderAll();
+  const saveToHistory = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    // Include custom properties in JSON serialization
+    const json = canvas.toJSON(['id', 'selectable', 'evented', 'customData']);
+
+    // Remove any redo history after current index
+    const currentHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+    currentHistory.push(json);
+
+    // Limit history size to prevent memory issues (optional)
+    const maxHistorySize = 50;
+    if (currentHistory.length > maxHistorySize) {
+      currentHistory.shift(); // Remove oldest entry
+    } else {
+      historyIndexRef.current = currentHistory.length - 1;
+    }
+
+    historyRef.current = currentHistory;
+
+    // Sync UI state
+    setHistory([...currentHistory]);
+    setHistoryIndex(historyIndexRef.current);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const newIndex = historyIndexRef.current - 1;
+    const json = historyRef.current[newIndex];
+
+    // Temporarily disable events to prevent infinite loops
+    canvas.off('object:added object:removed object:modified');
+
+    canvas.loadFromJSON(json, () => {
+      // Rebuild object map after loading
+      objectMapRef.current = {};
+      canvas.getObjects().forEach(obj => {
+        if (obj.id) {
+          objectMapRef.current[obj.id] = obj;
+        }
       });
-    }
-  };
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
+      // Force canvas update and render
+      canvas.calcOffset();
+      canvas.discardActiveObject(); // Clear any active selections
+      canvas.renderAll();
+      canvas.requestRenderAll();
+
+      // Update state
+      setShapeVersion(prev => prev + 1);
+      historyIndexRef.current = newIndex;
       setHistoryIndex(newIndex);
-      loadFromHistory(newIndex);
-      setSelectedObject(null);
-    }
-  };
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
+      // Re-enable events after a short delay
+      setTimeout(() => {
+        // Re-attach your canvas event listeners here
+        // For example:
+        // canvas.on('object:added', handleObjectAdded);
+        // canvas.on('object:removed', handleObjectRemoved);
+        // canvas.on('object:modified', handleObjectModified);
+        canvas.renderAll();
+      }, 10);
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const newIndex = historyIndexRef.current + 1;
+    const json = historyRef.current[newIndex];
+
+    // Temporarily disable events to prevent infinite loops
+    canvas.off('object:added object:removed object:modified');
+
+    canvas.loadFromJSON(json, () => {
+      // Rebuild object map after loading
+      objectMapRef.current = {};
+      canvas.getObjects().forEach(obj => {
+        if (obj.id) {
+          objectMapRef.current[obj.id] = obj;
+        }
+      });
+
+      // Force canvas update and render
+      canvas.calcOffset();
+      canvas.discardActiveObject(); // Clear any active selections
+      canvas.renderAll();
+      canvas.requestRenderAll();
+
+      // Update state
+      setShapeVersion(prev => prev + 1);
+      historyIndexRef.current = newIndex;
       setHistoryIndex(newIndex);
-      loadFromHistory(newIndex);
-      setSelectedObject(null);
-    }
+
+      // Re-enable events after a short delay
+      setTimeout(() => {
+        // Re-attach your canvas event listeners here
+        // For example:
+        // canvas.on('object:added', handleObjectAdded);
+        // canvas.on('object:removed', handleObjectRemoved);
+        // canvas.on('object:modified', handleObjectModified);
+        canvas.renderAll();
+      }, 10);
+    });
+  }, []);
+
+  // Fixed ToolButton JSX
+
+
+
+  const handleCopy = async () => {
+    const canvas = fabricCanvasRef.current;
+    const activeObject = canvas.getActiveObject();
+
+    if (!activeObject) return;
+
+    const cloned = await activeObject.clone();
+    setClipboard(cloned);
+    console.log(clipboard);
   };
 
 
+  const handlePaste = async () => {
+    const canvas = fabricCanvasRef.current;
 
-  const copyAll = () => {
-    if (objects.length > 0) {
-      const copied = objects.map(obj => ({
-        ...obj,
-        ...(obj.points ? { points: obj.points.map(p => ({ ...p })) } : {})
-      }));
-      setClipboard(copied);
+    if (!clipboard || !canvas) return;
+    const clonedObj = await clipboard.clone();
+
+    canvas.discardActiveObject();
+    clonedObj.set({
+      left: (clonedObj.left || 0) + 10,
+      top: (clonedObj.top || 0) + 10,
+      id: generateNewId(),
+      evented: true,
+    });
+
+    if (clonedObj instanceof fabric.ActiveSelection) {
+      clonedObj.canvas = canvas;
+
+      clonedObj.forEachObject((obj) => {
+        const newId = generateNewId();
+        obj.set({
+          left: (obj.left || 0) + 10,
+          top: (obj.top || 0) + 10,
+          id: newId,
+        });
+
+        canvas.add(obj);
+        objectMapRef.current[newId] = obj;
+      });
+
+      clonedObj.setCoords();
+    } else {
+      const newId = generateNewId();
+      clonedObj.set({
+        left: (clonedObj.left || 0) + 10,
+        top: (clonedObj.top || 0) + 10,
+        id: newId,
+      });
+
+      canvas.add(clonedObj);
+      objectMapRef.current[newId] = clonedObj;
     }
+
+    setShapeVersion(shapeVersion + 1);
+    saveToHistory();
+    clipboard.top += 10;
+    clipboard.left += 10;
+
+    canvas.setActiveObject(clonedObj);
+    canvas.requestRenderAll();
+  };
+
+  const generateNewId = () => {
+    return `cp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  };
+
+  const handleDelete = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject) return;
+
+    if (activeObject instanceof fabric.ActiveSelection) {
+      console.log('delete');
+      activeObject.forEachObject((obj) => {
+        canvas.remove(obj);
+        if (obj.id) {
+          delete objectMapRef.current[obj.id];
+        }
+      });
+    } else {
+      canvas.remove(activeObject);
+      if (activeObject.id) {
+        delete objectMapRef.current[activeObject.id];
+      }
+    }
+    setShapeVersion(shapeVersion + 1);
+    saveToHistory();
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
   };
 
 
@@ -518,7 +693,6 @@ const AdvancedCanvasEditor = () => {
   const resetCanvas = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-
     canvas.clear();
     canvas.renderAll();
   }
@@ -548,6 +722,7 @@ const AdvancedCanvasEditor = () => {
       obj.dirty = true;
       canvas.renderAll();
       setShapeVersion(shapeVersion + 1);
+      saveToHistory();
     }
   };
   const handleNameUpdate = (id, newName) => {
@@ -555,6 +730,7 @@ const AdvancedCanvasEditor = () => {
     if (obj) {
       obj.name = newName;
       setShapeVersion(shapeVersion + 1);
+      saveToHistory()
     }
   };
   const updateObjectProp = (prop, value) => {
@@ -566,7 +742,8 @@ const AdvancedCanvasEditor = () => {
     }
 
     fabricCanvasRef.current.renderAll();
-    setSelectedObject({ ...selectedObjectUsage }); // trigger re-render
+    setSelectedObject({ ...selectedObjectUsage });
+    saveToHistory();
   };
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
@@ -616,33 +793,34 @@ const AdvancedCanvasEditor = () => {
           <div className="flex items-center space-x-1">
             <ToolButton
               icon={Undo}
-              onClick={() => undo()}
+              onClick={undo}
               title="Undo (Ctrl+Z)"
               disabled={historyIndex <= 0}
             />
-
             <ToolButton
               icon={Redo}
               onClick={redo}
               title="Redo (Ctrl+Y)"
               disabled={historyIndex >= history.length - 1}
             />
+
             <ToolButton
               icon={Trash2} // Or use a different icon like Lucide's `Trash`
-              // onClick={deleteAll}
+              onClick={handleDelete}
               title="Delete All"
+              disabled={selectedObject === null && selectedObjects === null}
             />
 
             <ToolButton
               icon={Copy}
-              onClick={copyAll}
+              onClick={handleCopy}
               title="Copy"
               disabled={objects.length === 0}
             />
 
             <ToolButton
               icon={Clipboard}
-              // onClick={paste}
+              onClick={handlePaste}
               title="Paste"
               disabled={!clipboard || clipboard.length === 0}
             />
@@ -1027,14 +1205,17 @@ const AdvancedCanvasEditor = () => {
                     type="checkbox"
                     checked={selectedObject.lockMovementX && selectedObject.lockMovementY}
                     onChange={(e) => {
-                      const locked = e.target.checked;
-                      updateObjectProp('lockMovementX', locked);
-                      updateObjectProp('lockMovementY', locked);
-                      updateObjectProp('selectable', !locked);
-                      updateObjectProp('hasControls', !locked);
+                      const isLocked = e.target.checked;
+
+                      updateObjectProp('lockMovementX', isLocked);
+                      updateObjectProp('lockMovementY', isLocked);
+                      updateObjectProp('selectable', !isLocked);
+                      updateObjectProp('hasControls', !isLocked);
                     }}
                   />
-                  <label className={`text-sm ${darkMode ? 'text-white' : 'text-gray-700'}`}>Lock Position</label>
+                  <label className={`text-sm ${darkMode ? 'text-white' : 'text-gray-700'}`}>
+                    Lock Position
+                  </label>
                 </div>
               </div>
             ) : (<div className="space-y-4">
