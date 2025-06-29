@@ -19,7 +19,7 @@ const LANGUAGE_VERSIONS = {
 };
 
 const CODE_SNIPPETS = {
-  javascript: `function greet(name) {
+  javascript: `function greet(name) { // Corrected: 'f' was missing
   console.log('Hello, ' + name + '!');
 }
 greet("Alex"); // Try changing "Alex" to your name!
@@ -34,11 +34,7 @@ function greet(data: Params) {
 
 greet({ name: "Alex" }); // Try changing "Alex" to your name and see the TypeScript simulation!
 `,
-  python: `def greet(name):
-    print("Hello, " + name + "!")
-
-greet("Alex") # Change "Alex" to your name for a simulated Python output!
-`,
+  python: `def greet(name):\n\tprint("Hello, " + name + "!")\n\ngreet("Alex") # Change "Alex" to your name for a simulated Python output!\n`,
   java: `public class HelloWorld {
     public static void main(String[] args) {
         System.out.println("Hello World from Java!"); // Change this message!
@@ -83,7 +79,6 @@ You can write anything here, but it's not executable code.`,
 const getDefaultContent = (lang) => {
   return CODE_SNIPPETS[lang] || `// No snippet available for ${lang}`;
 };
-
 
 // Simulate Axios API interaction for the Piston API
 const simulateAxiosPost = async (url, data) => {
@@ -235,7 +230,6 @@ export const executeCode = async (language, sourceCode) => {
   return response.data;
 };
 
-
 // Main App component
 function App() {
   const [theme, setTheme] = useState('vs-dark');
@@ -276,18 +270,10 @@ $ Click 'Run' to execute code.
   // State for selected item in explorer (distinct from active file)
   const [selectedItemId, setSelectedItemId] = useState(null);
 
-
   // State for file system and open editors
   const [fileSystem, setFileSystem] = useState([
-    { id: generateId(), name: 'src', type: 'folder', isOpen: true, children: [
-      { id: generateId(), name: 'App.js', type: 'file', language: 'javascript', content: getDefaultContent('javascript') },
-      { id: generateId(), name: 'index.js', type: 'file', language: 'javascript', content: `import React from 'react';\nimport ReactDOM from 'react-dom';\nimport App from './App';\n\nReactDOM.render(<App />, document.getElementById('root'));` },
-      { id: generateId(), name: 'styles.css', type: 'file', language: 'css', content: getDefaultContent('css') },
-    ]},
-    { id: generateId(), name: 'public', type: 'folder', isOpen: false, children: [
-      { id: generateId(), name: 'index.html', type: 'file', language: 'html', content: getDefaultContent('html') },
-    ]},
-    { id: generateId(), name: 'README.md', type: 'file', language: 'markdown', content: getDefaultContent('markdown') },
+    // Initial file system will have only one file
+    { id: generateId(), name: 'main.js', type: 'file', language: 'javascript', content: getDefaultContent('javascript') },
   ]);
   const [openEditors, setOpenEditors] = useState([]);
   const [activeFileId, setActiveFileId] = useState(null);
@@ -295,7 +281,7 @@ $ Click 'Run' to execute code.
   const [activeFileLanguage, setActiveFileLanguage] = useState('javascript');
 
   // Function to get the path of a file/folder
-  const getItemPath = (itemId, currentPath = '', currentItems = fileSystem) => {
+  const getItemPath = useCallback((itemId, currentPath = '', currentItems = fileSystem) => {
     for (const item of currentItems) {
       const newPath = currentPath === '' ? item.name : `${currentPath}/${item.name}`;
       if (item.id === itemId) {
@@ -307,10 +293,10 @@ $ Click 'Run' to execute code.
       }
     }
     return null;
-  };
+  }, [fileSystem]);
 
   // Recursively flatten file system for easier lookup
-  const flattenFileSystem = (items, result = []) => {
+  const flattenFileSystem = useCallback((items, result = []) => {
     items.forEach(item => {
       result.push(item);
       if (item.type === 'folder' && item.children) {
@@ -318,7 +304,7 @@ $ Click 'Run' to execute code.
       }
     });
     return result;
-  };
+  }, []);
 
   // Update content of a file in the file system
   const updateFileContent = useCallback((fileId, newContent) => {
@@ -341,11 +327,10 @@ $ Click 'Run' to execute code.
         editor.id === fileId ? { ...editor, content: newContent } : editor
       )
     );
-  }, []);
-
+  }, [setFileSystem, setOpenEditors]);
 
   const handleFileClick = useCallback((file) => {
-    // Select the item
+    // Select the item visually in the explorer
     setSelectedItemId(file.id);
 
     if (file.type === 'file') {
@@ -372,7 +357,7 @@ $ Click 'Run' to execute code.
         return toggleFolder(prevFileSystem);
       });
     }
-  }, [setOpenEditors, setFileSystem, setActiveFileId]);
+  }, [setOpenEditors, setFileSystem, setActiveFileId, setSelectedItemId]);
 
   const handleCloseEditor = useCallback((fileIdToClose) => {
     setOpenEditors(prev => {
@@ -382,9 +367,9 @@ $ Click 'Run' to execute code.
       }
       return newOpenEditors;
     });
-  }, [activeFileId]);
+  }, [activeFileId, setOpenEditors]);
 
-  // Initiate inline file/folder creation
+  // Initiate inline file/folder creation (used by explorer buttons and context menu)
   const initiateNewItemCreation = useCallback((type, parentId) => {
     setCreatingNewItem({ parentId, type, name: '' });
     // If it's a folder, ensure it's open to show the new item input
@@ -404,12 +389,12 @@ $ Click 'Run' to execute code.
         return openParentFolder(prevFileSystem);
       });
     }
-  }, []);
+  }, [setCreatingNewItem, setFileSystem]);
 
   // Handle new item name change for inline input
   const handleNewItemNameChange = useCallback((e) => {
     setCreatingNewItem(prev => ({ ...prev, name: e.target.value }));
-  }, []);
+  }, [setCreatingNewItem]);
 
   // Handle new item submission (on Enter or blur)
   const handleNewItemSubmit = useCallback((e, parentId, type, name) => {
@@ -421,7 +406,7 @@ $ Click 'Run' to execute code.
       }
 
       const fileExtension = itemName.split('.').pop();
-      const newItemLanguage = type === 'file' ? (fileExtension || 'plaintext') : undefined;
+      const newItemLanguage = type === 'file' ? (Object.keys(LANGUAGE_VERSIONS).includes(fileExtension) ? fileExtension : 'plaintext') : undefined;
 
       const newItem = {
         id: generateId(),
@@ -455,8 +440,7 @@ $ Click 'Run' to execute code.
         handleFileClick(newItem); // Open the new file automatically
       }
     }
-  }, [handleFileClick]);
-
+  }, [handleFileClick, setCreatingNewItem, setFileSystem]);
 
   const handleContextMenu = useCallback((e, item) => {
     e.preventDefault(); // Prevent default browser context menu
@@ -466,31 +450,26 @@ $ Click 'Run' to execute code.
       y: e.clientY,
       item: item,
     });
-  }, []);
+  }, [setContextMenu]);
 
   const handleCopyPath = useCallback(() => {
     if (contextMenu.item) {
       const fullPath = getItemPath(contextMenu.item.id);
       if (fullPath) {
-        document.execCommand('copy'); // Fallback for clipboard API in iframes
-        navigator.clipboard.writeText(fullPath).then(() => {
-          setTerminalOutput(prev => prev + `\n$ Copied path: ${fullPath}`);
-          setActivePanelTab('terminal');
-        }).catch(() => {
-          // Fallback if navigator.clipboard.writeText fails
-          const tempInput = document.createElement('textarea');
-          tempInput.value = fullPath;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
-          setTerminalOutput(prev => prev + `\n$ Copied path (fallback): ${fullPath}`);
-          setActivePanelTab('terminal');
-        });
+        // Use document.execCommand('copy') as navigator.clipboard.writeText() may not work due to iFrame restrictions
+        const tempInput = document.createElement('textarea');
+        tempInput.value = fullPath;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+
+        setTerminalOutput(prev => prev + `\n$ Copied path: ${fullPath}`);
+        setActivePanelTab('terminal');
       }
     }
     setContextMenu({ ...contextMenu, visible: false });
-  }, [contextMenu, setTerminalOutput]);
+  }, [contextMenu, setTerminalOutput, setActivePanelTab, getItemPath]);
 
   const handleCopyRelativePath = useCallback(() => {
     if (contextMenu.item) {
@@ -499,24 +478,20 @@ $ Click 'Run' to execute code.
       // In a real app, this would depend on the current "project root".
       const relativePath = fullPath ? fullPath.split('/').slice(1).join('/') : ''; // Remove first segment
       if (relativePath) {
+        // Use document.execCommand('copy') as navigator.clipboard.writeText() may not work due to iFrame restrictions
+        const tempInput = document.createElement('textarea');
+        tempInput.value = relativePath;
+        document.body.appendChild(tempInput);
+        tempInput.select();
         document.execCommand('copy');
-        navigator.clipboard.writeText(relativePath).then(() => {
-          setTerminalOutput(prev => prev + `\n$ Copied relative path: ${relativePath}`);
-          setActivePanelTab('terminal');
-        }).catch(() => {
-          const tempInput = document.createElement('textarea');
-          tempInput.value = relativePath;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
-          setTerminalOutput(prev => prev + `\n$ Copied relative path (fallback): ${relativePath}`);
-          setActivePanelTab('terminal');
-        });
+        document.body.removeChild(tempInput);
+
+        setTerminalOutput(prev => prev + `\n$ Copied relative path: ${relativePath}`);
+        setActivePanelTab('terminal');
       }
     }
     setContextMenu({ ...contextMenu, visible: false });
-  }, [contextMenu, setTerminalOutput]);
+  }, [contextMenu, setTerminalOutput, setActivePanelTab, getItemPath]);
 
   const handleShare = useCallback(() => {
     if (contextMenu.item) {
@@ -525,34 +500,35 @@ $ Click 'Run' to execute code.
       setActivePanelTab('terminal');
     }
     setContextMenu({ ...contextMenu, visible: false });
-  }, [contextMenu, setTerminalOutput]);
+  }, [contextMenu, setTerminalOutput, setActivePanelTab]);
 
   // Function to delete an item
   const handleDeleteItem = useCallback((itemIdToDelete) => {
-    const deleteFromFs = (items) => {
-      return items.filter(item => {
-        if (item.id === itemIdToDelete) {
-          // If the item to delete is currently active in the editor or an open tab, close it
-          if (activeFileId === itemIdToDelete) {
-            setActiveFileId(null);
+    setFileSystem(prevFileSystem => {
+      const deleteFromFs = (items) => {
+        return items.filter(item => {
+          if (item.id === itemIdToDelete) {
+            // If the item to delete is currently active in the editor or an open tab, close it
+            if (activeFileId === itemIdToDelete) {
+              setActiveFileId(null);
+            }
+            setOpenEditors(prev => prev.filter(editor => editor.id !== itemIdToDelete));
+            if (selectedItemId === itemIdToDelete) {
+              setSelectedItemId(null);
+            }
+            setTerminalOutput(prev => prev + `\n$ Deleted: ${getItemPath(itemIdToDelete)}`);
+            return false; // Remove this item
           }
-          setOpenEditors(prev => prev.filter(editor => editor.id !== itemIdToDelete));
-          if (selectedItemId === itemIdToDelete) {
-            setSelectedItemId(null);
+          if (item.type === 'folder' && item.children) {
+            item.children = deleteFromFs(item.children);
           }
-          setTerminalOutput(prev => prev + `\n$ Deleted: ${getItemPath(itemIdToDelete)}`);
-          return false; // Remove this item
-        }
-        if (item.type === 'folder' && item.children) {
-          item.children = deleteFromFs(item.children);
-        }
-        return true; // Keep this item
-      });
-    };
-    setFileSystem(prevFileSystem => deleteFromFs(prevFileSystem));
+          return true; // Keep this item
+        });
+      };
+      return deleteFromFs(prevFileSystem);
+    });
     setContextMenu({ ...contextMenu, visible: false });
-  }, [activeFileId, selectedItemId, setOpenEditors, setTerminalOutput, contextMenu]);
-
+  }, [activeFileId, selectedItemId, setOpenEditors, setTerminalOutput, setFileSystem, contextMenu, getItemPath]);
 
   // Recursive rendering of file system items
   const renderFileSystem = (items, indent = 0) => {
@@ -599,7 +575,7 @@ $ Click 'Run' to execute code.
                 <span className="mr-1">{creatingNewItem.type === 'folder' ? '📁' : '📄'}</span>
                 <input
                     type="text"
-                    className="new-item-input flex-grow bg-gray-600 text-white border border-blue-500 rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-500"
+                    className="new-item-input flex-grow bg-gray-600 text-white border border-blue-500 rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     value={creatingNewItem.name}
                     onChange={handleNewItemNameChange}
                     onKeyDown={(e) => handleNewItemSubmit(e, creatingNewItem.parentId, creatingNewItem.type, creatingNewItem.name)}
@@ -612,44 +588,64 @@ $ Click 'Run' to execute code.
     ));
   };
 
-
   // Handle theme change
-  const handleThemeChange = (e) => {
+  const handleThemeChange = useCallback((e) => {
     setTheme(e.target.value);
-  };
+  }, [setTheme]);
 
   // Handle language change (for new files created from top bar)
   const handleLanguageChange = useCallback((newLanguage) => {
-    // Initiate inline creation at the root level for language buttons
-    initiateNewItemCreation('file', null);
-    // Pre-fill name and language if possible (though the user will type over it)
-    setCreatingNewItem(prev => ({
-        ...prev,
-        name: `new_file.${newLanguage.toLowerCase().substring(0,3)}`, // Suggest a name
-        type: 'file',
-        language: newLanguage // Store intended language for getDefaultContent
-    }));
-  }, [initiateNewItemCreation]);
+    // Determine file extension
+    const fileExtensionMap = {
+      javascript: 'js',
+      typescript: 'ts',
+      python: 'py',
+      java: 'java',
+      csharp: 'cs',
+      php: 'php',
+      html: 'html',
+      css: 'css',
+      json: 'json',
+      markdown: 'md',
+      plaintext: 'txt',
+    };
+    const fileExtension = fileExtensionMap[newLanguage] || 'txt';
 
+    const newFileName = `untitled.${fileExtension}`;
+    const newFileId = generateId();
+
+    const newFile = {
+      id: newFileId,
+      name: newFileName,
+      type: 'file',
+      language: newLanguage,
+      content: getDefaultContent(newLanguage),
+    };
+
+    // Add the new file to the root of the file system
+    setFileSystem(prevFileSystem => [...prevFileSystem, newFile]);
+
+    // Directly open the new file in the editor
+    handleFileClick(newFile);
+  }, [handleFileClick, setFileSystem]);
 
   // Handle panel resizing (mouse down)
   const handlePanelMouseDown = useCallback((e) => {
     setIsResizingPanel(true);
     document.body.style.cursor = 'ns-resize';
-  }, []);
+  }, [setIsResizingPanel]);
 
   // Handle explorer resizing (mouse down)
   const handleExplorerMouseDown = useCallback((e) => {
     setIsResizingExplorer(true);
     document.body.style.cursor = 'ew-resize';
-  }, []);
+  }, [setIsResizingExplorer]);
 
   // Handle explorer/open editors split resizing (mouse down)
   const handleExplorerSplitMouseDown = useCallback((e) => {
     setIsResizingExplorerSplit(true);
     document.body.style.cursor = 'ns-resize';
-  }, []);
-
+  }, [setIsResizingExplorerSplit]);
 
   // Handle global mouse move for resizing
   const handleMouseMove = useCallback((e) => {
@@ -672,7 +668,7 @@ $ Click 'Run' to execute code.
             setExplorerSplitHeight(Math.max(0.2, Math.min(0.8, newSplitRatio)));
         }
     }
-  }, [isResizingPanel, isResizingExplorer, isResizingExplorerSplit]);
+  }, [isResizingPanel, isResizingExplorer, isResizingExplorerSplit, setPanelHeight, setExplorerWidth, setExplorerSplitHeight, editorRef, explorerContentRef]);
 
   // Handle global mouse up to stop resizing
   const handleMouseUp = useCallback(() => {
@@ -680,7 +676,7 @@ $ Click 'Run' to execute code.
     setIsResizingExplorer(false);
     setIsResizingExplorerSplit(false);
     document.body.style.cursor = 'default';
-  }, []);
+  }, [setIsResizingPanel, setIsResizingExplorer, setIsResizingExplorerSplit]);
 
   useEffect(() => {
     if (isResizingPanel || isResizingExplorer || isResizingExplorerSplit) {
@@ -694,9 +690,8 @@ $ Click 'Run' to execute code.
     };
   }, [isResizingPanel, isResizingExplorer, isResizingExplorerSplit, handleMouseMove, handleMouseUp]);
 
-
   // Handle code execution
-  const handleRunCode = async () => {
+  const handleRunCode = useCallback(async () => {
     if (!activeFileId) {
       setTerminalOutput(prev => prev + `\n$ No file is open to run.`);
       setActivePanelTab('terminal');
@@ -756,7 +751,7 @@ $ Click 'Run' to execute code.
     } finally {
       setIsLoadingCode(false); // Reset loading state
     }
-  };
+  }, [activeFileId, activeFileLanguage, executeCode, setIsLoadingCode, setOutputDisplayContent, setTerminalOutput, setActivePanelTab, editorRef, activeFileName]);
 
   // Mock function to generate problems based on simple keywords
   const generateProblems = useCallback(() => {
@@ -784,11 +779,11 @@ $ Click 'Run' to execute code.
       }
     });
     return problems.length > 0 ? problems : ["No problems detected."];
-  }, [fileSystem]);
+  }, [fileSystem, flattenFileSystem]);
 
   const handleTerminalClear = useCallback(() => {
     setTerminalOutput('$ Terminal Cleared.\n$ ');
-  }, []);
+  }, [setTerminalOutput]);
 
   // Load Monaco Editor scripts from CDN
   useEffect(() => {
@@ -877,7 +872,7 @@ $ Click 'Run' to execute code.
         setActiveFileLanguage('');
       }
     }
-  }, [activeFileId, editorLoaded, fileSystem, theme]);
+  }, [activeFileId, editorLoaded, fileSystem, theme, flattenFileSystem, updateFileContent]);
 
   useEffect(() => {
     if (editorRef.current && monacoRef.current) {
@@ -905,8 +900,7 @@ $ Click 'Run' to execute code.
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [contextMenu, creatingNewItem, handleNewItemSubmit]);
-
+  }, [contextMenu, creatingNewItem, handleNewItemSubmit, setCreatingNewItem]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
@@ -1249,3 +1243,5 @@ $ Click 'Run' to execute code.
 }
 
 export default App;
+
+
