@@ -127,7 +127,6 @@ const AdvancedCanvasEditor = () => {
         const ymap = ymapRef.current;
 
         try {
-            // Set up WebSocket provider with error handling
             if (process.env.REACT_APP_SOCKET_URL) {
                 providerRef.current = new WebsocketProvider(
                     process.env.REACT_APP_SOCKET_URL,
@@ -140,7 +139,6 @@ const AdvancedCanvasEditor = () => {
                     }
                 );
 
-                // Handle connection events
                 providerRef.current.on('status', event => {
                     console.log('WebSocket status:', event.status);
                 });
@@ -453,7 +451,9 @@ const AdvancedCanvasEditor = () => {
 
     function rebuildCanvasFromYMap(ymap, canvas, objectMapRef) {
         const objectsToAdd = [];
-
+        if(session.isNewSession){
+            ymap=JSON.parse(session.content);
+        }
         ymap.forEach((value, key) => {
             if (key === 'canvas') return;
 
