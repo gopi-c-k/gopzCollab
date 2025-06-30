@@ -195,6 +195,27 @@ const Home = () => {
         setShowSnackbar(true);
         setTimeout(() => setShowSnackbar(false), 3000);
       }
+    } 
+    else if(room.type === 'canvas'){
+      setRoomEditorLoading(true);
+      try {
+        const res = await axiosInstance.post(`/session/create-or-join/${room._id}`);
+        if (res.status === 200) {
+          setRoomEditorLoading(false);
+          const session = res.data;
+          navigate('/canvas/editor', {
+            state: {
+              session
+            }
+          });
+        }
+      } catch (error) {
+        setRoomEditorLoading(false);
+        setSnackbarMessage('Error while joining the room!');
+        setSnackbarType('error');
+        setShowSnackbar(true);
+        setTimeout(() => setShowSnackbar(false), 3000);
+      }
     }
   };
 

@@ -64,8 +64,19 @@ import {
     Droplet,
     RefreshCw,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import Message from '../components/Message';
+import { useNavigate } from "react-router-dom";
 
-const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous' }) => {
+
+
+const AdvancedCanvasEditor = () => {
+    const location = useLocation();
+    const { session } = location.state || {};
+    const navigate = useNavigate();
+    const { name, profilePic, session_id, userId } = session;
+    const roomName = session_id;
+    const userName = name;
     const canvasRef = useRef(null);
     let syncCompleted = false;
     const [activeTool, setActiveTool] = useState('');
@@ -790,6 +801,7 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
         }
 
     }, [gridVisible, darkMode]);
+    const yChatArray = ydoc.getArray('chat');
 
     // Shape creation and manipulation
     const handleMouseDown = (e) => {
@@ -1019,12 +1031,12 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
     }, [shapeVersion]);
 
     const updateObjectOrder = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
 
-    const objectOrder = canvas.getObjects().map(obj => obj.id);
-    ymap.set('objectOrder', JSON.stringify(objectOrder));
-};
+        const objectOrder = canvas.getObjects().map(obj => obj.id);
+        ymap.set('objectOrder', JSON.stringify(objectOrder));
+    };
 
 
     const bringToFront = () => {
@@ -1339,6 +1351,11 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
             </div>
         </div>
     );
+    if (!session) {
+        return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
+        </div>);
+    }
 
     return (
         <div className={`flex flex-col h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -2015,6 +2032,9 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
                         </div>
                     )}
                 </div>
+            </div>
+            <div className="fixed bottom-4 right-4 z-50">
+                <Message darkMode={darkMode} yChatArray={yChatArray} username={name} />
             </div>
         </div>
     );
