@@ -1220,7 +1220,7 @@ $ Click 'Run' to execute code.
             className="h-1 bg-gray-700 hover:bg-blue-500 cursor-ns-resize transition-colors duration-100 mx-3 rounded-b-lg"
             onMouseDown={handlePanelMouseDown}
           ></div>
-
+{/* output panal*/}
           {/* Bottom Panel */}
           <div className="bg-gray-800 text-gray-300 mx-3 mb-3 p-2 rounded-lg shadow-xl flex flex-col" style={{ height: panelHeight, minHeight: '50px', maxHeight: '50vh' }}>
             <div className="flex border-b border-gray-700 mb-2">
@@ -1240,7 +1240,7 @@ $ Click 'Run' to execute code.
                 onClick={() => setActivePanelTab('terminal')}
                 className={`px-4 py-2 text-sm ${activePanelTab === 'terminal' ? 'text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white'}`}
               >
-                Terminal
+               Terminal
               </button>
             </div>
             <div className="flex-grow overflow-auto text-sm bg-gray-900 p-2 rounded-md whitespace-pre-wrap">
