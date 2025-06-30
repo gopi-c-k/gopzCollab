@@ -11,6 +11,7 @@ const LANGUAGE_VERSIONS = {
   java: "15.0.2",
   csharp: "6.12.0",
   php: "8.2.3",
+  cpp: "10.2.0", // Changed from "latest" to a specific version to fix API error
   html: "latest", // Piston API doesn't "execute" HTML directly, but we can simulate
   css: "latest",  // Piston API doesn't "execute" CSS directly, but we can simulate
   json: "latest", // Piston API doesn't "execute" JSON directly, but we can simulate
@@ -27,11 +28,9 @@ greet("Alex"); // Try changing "Alex" to your name!
   typescript: `type Params = {
   name: string;
 }
-
 function greet(data: Params) {
   console.log("Hello, " + data.name + "!");
 }
-
 greet({ name: "Alex" }); // Try changing "Alex" to your name and see the TypeScript simulation!
 `,
   python: `def greet(name):\n\tprint("Hello, " + name + "!")\n\ngreet("Alex") # Change "Alex" to your name for a simulated Python output!\n`,
@@ -44,6 +43,13 @@ greet({ name: "Alex" }); // Try changing "Alex" to your name and see the TypeScr
   csharp:
     'using System;\n\nnamespace HelloWorld\n{\n\tclass Hello { \n\t\tstatic void Main(string[] args) {\n\t\t\tConsole.WriteLine("Hello World in C#");\n\t\t}\n\t}\n}\n',
   php: "<?php\n\n$name = 'Alex';\necho 'Hello from PHP, ' . $name . '!';\n// Try changing the name variable!\n",
+  cpp: `#include <iostream>
+
+int main() {
+    std::cout << "Hello World from C++!" << std::endl; // Change this message!
+    return 0;
+}
+`, // Added C++ snippet
   html: `<!DOCTYPE html>
 <html>
 <head>
@@ -69,7 +75,6 @@ body {
 ## This is a heading
 - List item 1
 - List item 2
-
 Markdown is a markup language, not executable code.`,
   plaintext: `This is a plain text file.
 You can write anything here, but it's not executable code.`,
@@ -80,145 +85,50 @@ const getDefaultContent = (lang) => {
   return CODE_SNIPPETS[lang] || `// No snippet available for ${lang}`;
 };
 
-// Simulate Axios API interaction for the Piston API
-const simulateAxiosPost = async (url, data) => {
-    console.log(`Simulating API call to ${url} with data:`, data);
-    return new Promise(resolve => {
-        setTimeout(() => {
-            if (url.includes("/execute")) {
-                let output = "";
-                let stderr = "";
-                let exitCode = 0;
-
-                const language = data.language; // Language from the API request
-                // Safely access content from the files array
-                const sourceCode = data.files && data.files.length > 0 ? data.files[0].content : '';
-
-                switch (language) {
-                    case 'javascript':
-                        try {
-                            // Temporarily capture console.log output
-                            const originalConsoleLog = console.log;
-                            let jsOutput = '';
-                            console.log = (...args) => { jsOutput += args.join(' ') + '\n'; };
-                            new Function(sourceCode)(); // Execute JS code
-                            console.log = originalConsoleLog; // Restore original console.log
-                            output = jsOutput.trim();
-                        } catch (e) {
-                            stderr = e.message;
-                            exitCode = 1;
-                        }
-                        break;
-                    case 'python':
-                        // Simple simulation for Python based on common patterns
-                        if (sourceCode.includes("print")) {
-                            output = `Simulated Python Output: Code length ${sourceCode.length} chars. Looks like a print statement was there!\n`;
-                            const matches = sourceCode.match(/print\((.*?)\)/g);
-                            if (matches) {
-                                matches.forEach(match => {
-                                    output += `-> Detected: ${match}\n`;
-                                });
-                            }
-                        } else {
-                            output = "Simulated Python execution complete (no print statements detected).";
-                        }
-                        break;
-                    case 'java':
-                        output = "Simulated Java Output: Java program executed.";
-                        if (sourceCode.includes("System.out.println")) {
-                            output += "\n-> Detected System.out.println statement.";
-                        }
-                        break;
-                    case 'csharp':
-                        output = "Simulated C# Output: C# program executed.";
-                        if (sourceCode.includes("Console.WriteLine")) {
-                            output += "\n-> Detected Console.WriteLine statement.";
-                        }
-                        break;
-                    case 'php':
-                        output = "Simulated PHP Output: PHP script ran.";
-                        if (sourceCode.includes("echo")) {
-                            output += "\n-> Detected 'echo' statement.";
-                        }
-                        break;
-                    case 'typescript':
-                        output = "Simulated TypeScript Output: Compiled to JavaScript and executed.";
-                        if (sourceCode.includes("console.log")) {
-                             const originalConsoleLog = console.log;
-                            let tsOutput = '';
-                            console.log = (...args) => { tsOutput += args.join(' ') + '\n'; };
-                            // Basic regex to extract console.log like calls
-                            const logMatches = sourceCode.match(/console\.log\((.*?)\)/g);
-                            if (logMatches) {
-                                logMatches.forEach(match => {
-                                    tsOutput += `-> TS Log Detected: ${match}\n`;
-                                });
-                            }
-                             console.log = originalConsoleLog;
-                            output += `\n${tsOutput.trim()}`;
-                        }
-                        break;
-                    // For HTML, CSS, JSON, Markdown, Plaintext, we return descriptive messages
-                    case 'html':
-                        output = "HTML content is for rendering in a browser, not direct execution. \n(Check the file content to 'see' the output.)";
-                        break;
-                    case 'css':
-                        output = "CSS defines styles, it is not directly executable. \n(It modifies the appearance of HTML.)";
-                        break;
-                    case 'json':
-                        try {
-                            JSON.parse(sourceCode);
-                            output = "JSON is valid.";
-                        } catch (e) {
-                            stderr = `JSON Parse Error: ${e.message}`;
-                            exitCode = 1;
-                        }
-                        break;
-                    case 'markdown':
-                        output = "Markdown is a markup language, not executable code. \n(It's for formatted text.)";
-                        break;
-                    case 'plaintext':
-                        output = "This is plain text, not executable code. \n(It contains raw unformatted text.)";
-                        break;
-                    default:
-                        output = `Execution for language '${language}' is not supported by this simulator.`;
-                }
-
-                resolve({
-                    data: {
-                        run: {
-                            stdout: output,
-                            stderr: stderr,
-                            code: exitCode,
-                            signal: null,
-                            output: output + stderr, // Combined output for simplicity
-                        },
-                        language: language,
-                        version: data.version,
-                    }
-                });
-            } else {
-                resolve({ data: {} }); // Generic response for other endpoints
-            }
-        }, 1000); // Simulate network delay
-    });
-};
-
-// The API object to mimic axios.create().post()
-const API = {
-    post: (endpoint, data) => {
-        // Ensure data.files[0].content is passed as sourceCode to the simulator
-        return simulateAxiosPost(endpoint, {
-            language: data.language,
-            files: data.files, // Pass the entire files array as it is
-            version: data.version
+// --- START: New axios mock using fetch for real API calls ---
+const mockAxios = {
+  create: ({ baseURL }) => ({
+    post: async (endpoint, data) => {
+      const url = `${baseURL}${endpoint}`;
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
         });
-    }
-};
 
-// The executeCode function from your provided snippet
-export const executeCode = async (language, sourceCode) => {
-  const response = await API.post("/execute", {
+        if (!response.ok) {
+          const errorText = await response.text(); // Get raw text for better debugging
+          let errorMessage = `HTTP error! Status: ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage += `, Message: ${errorJson.message || JSON.stringify(errorJson)}`;
+          } catch (e) {
+            errorMessage += `, Response: ${errorText.substring(0, 200)}...`; // Truncate long responses
+          }
+          throw new Error(errorMessage);
+        }
+        return { data: await response.json() };
+      } catch (error) {
+        console.error("Error during API call:", error);
+        // Re-throw to be caught by the calling function's try-catch
+        throw error;
+      }
+    },
+  }),
+};
+// --- END: New axios mock using fetch for real API calls ---
+
+
+// --- START: The executeCode function provided by the user, modified to use mockAxios ---
+const executeCode = async (language, sourceCode) => {
+  const API_INSTANCE = mockAxios.create({
+    baseURL: "https://emkc.org/api/v2/piston",
+  });
+
+  const response = await API_INSTANCE.post("/execute", {
     language: language,
     version: LANGUAGE_VERSIONS[language],
     files: [
@@ -229,6 +139,8 @@ export const executeCode = async (language, sourceCode) => {
   });
   return response.data;
 };
+// --- END: The executeCode function provided by the user ---
+
 
 // Main App component
 function App() {
@@ -280,6 +192,48 @@ $ Click 'Run' to execute code.
   const [activeFileName, setActiveFileName] = useState('');
   const [activeFileLanguage, setActiveFileLanguage] = useState('javascript');
 
+  // State to track the currently dragged item's ID in open editors
+  const [draggedOpenEditorId, setDraggedOpenEditorId] = useState(null);
+
+
+  // Update content of a file in the file system
+  // Moved this definition up to avoid "Cannot access before initialization"
+  const updateFileContent = useCallback((fileId, newContent) => {
+    setFileSystem(prevFileSystem => {
+      const update = (items) => {
+        return items.map(item => {
+          if (item.id === fileId && item.type === 'file') {
+            return { ...item, content: newContent };
+          }
+          if (item.type === 'folder' && item.children) {
+            return { ...item, children: update(item.children) };
+          }
+          return item;
+        });
+      };
+      return update(prevFileSystem);
+    });
+    setOpenEditors(prevOpenEditors =>
+      prevOpenEditors.map(editor =>
+        editor.id === fileId ? { ...editor, content: newContent } : editor
+      )
+    );
+  }, [setFileSystem, setOpenEditors]);
+
+  // Refs to hold the latest state values for Monaco editor callbacks
+  const activeFileIdRef = useRef(null); // Initialize with null
+  const updateFileContentRef = useRef(null); // Initialize with null
+
+  // Update refs when their corresponding states/callbacks change
+  useEffect(() => {
+    activeFileIdRef.current = activeFileId;
+  }, [activeFileId]);
+
+  useEffect(() => {
+    updateFileContentRef.current = updateFileContent;
+  }, [updateFileContent]);
+
+
   // Function to get the path of a file/folder
   const getItemPath = useCallback((itemId, currentPath = '', currentItems = fileSystem) => {
     for (const item of currentItems) {
@@ -306,33 +260,10 @@ $ Click 'Run' to execute code.
     return result;
   }, []);
 
-  // Update content of a file in the file system
-  const updateFileContent = useCallback((fileId, newContent) => {
-    setFileSystem(prevFileSystem => {
-      const update = (items) => {
-        return items.map(item => {
-          if (item.id === fileId && item.type === 'file') {
-            return { ...item, content: newContent };
-          }
-          if (item.type === 'folder' && item.children) {
-            return { ...item, children: update(item.children) };
-          }
-          return item;
-        });
-      };
-      return update(prevFileSystem);
-    });
-    setOpenEditors(prevOpenEditors =>
-      prevOpenEditors.map(editor =>
-        editor.id === fileId ? { ...editor, content: newContent } : editor
-      )
-    );
-  }, [setFileSystem, setOpenEditors]);
 
   const handleFileClick = useCallback((file) => {
     // Select the item visually in the explorer
     setSelectedItemId(file.id);
-
     if (file.type === 'file') {
       setActiveFileId(file.id);
       setOpenEditors(prev => {
@@ -370,8 +301,12 @@ $ Click 'Run' to execute code.
   }, [activeFileId, setOpenEditors]);
 
   // Initiate inline file/folder creation (used by explorer buttons and context menu)
-  const initiateNewItemCreation = useCallback((type, parentId) => {
-    setCreatingNewItem({ parentId, type, name: '' });
+  const initiateNewItemCreation = useCallback((type, parentId, preferredExtension = null) => {
+    let initialName = '';
+    if (type === 'file' && preferredExtension) {
+      initialName = `untitled.${preferredExtension}`;
+    }
+    setCreatingNewItem({ parentId, type, name: initialName });
     // If it's a folder, ensure it's open to show the new item input
     if (type === 'file' || type === 'folder') {
       setFileSystem(prevFileSystem => {
@@ -386,6 +321,8 @@ $ Click 'Run' to execute code.
             return item;
           });
         };
+        // If parentId is null (root), no need to open a specific folder
+        if (parentId === null) return prevFileSystem;
         return openParentFolder(prevFileSystem);
       });
     }
@@ -405,8 +342,24 @@ $ Click 'Run' to execute code.
         return;
       }
 
-      const fileExtension = itemName.split('.').pop();
-      const newItemLanguage = type === 'file' ? (Object.keys(LANGUAGE_VERSIONS).includes(fileExtension) ? fileExtension : 'plaintext') : undefined;
+      // Determine file extension and language based on the entered name
+      const fileExtension = itemName.includes('.') ? itemName.split('.').pop() : 'txt';
+      // Map common extensions to their language keys, or default to plaintext
+      const languageMap = {
+        js: 'javascript',
+        ts: 'typescript',
+        py: 'python',
+        java: 'java',
+        cs: 'csharp',
+        php: 'php',
+        cpp: 'cpp', // Explicitly map cpp extension
+        html: 'html',
+        css: 'css',
+        json: 'json',
+        md: 'markdown',
+        txt: 'plaintext',
+      };
+      const newItemLanguage = type === 'file' ? (languageMap[fileExtension] || 'plaintext') : undefined;
 
       const newItem = {
         id: generateId(),
@@ -463,7 +416,6 @@ $ Click 'Run' to execute code.
         tempInput.select();
         document.execCommand('copy');
         document.body.removeChild(tempInput);
-
         setTerminalOutput(prev => prev + `\n$ Copied path: ${fullPath}`);
         setActivePanelTab('terminal');
       }
@@ -485,7 +437,6 @@ $ Click 'Run' to execute code.
         tempInput.select();
         document.execCommand('copy');
         document.body.removeChild(tempInput);
-
         setTerminalOutput(prev => prev + `\n$ Copied relative path: ${relativePath}`);
         setActivePanelTab('terminal');
       }
@@ -545,22 +496,24 @@ $ Click 'Run' to execute code.
           onContextMenu={(e) => handleContextMenu(e, item)} // Right-click handler
         >
           {item.type === 'folder' ? (
-            <span className="mr-1">{item.isOpen ? '📂' : '📁'}</span>
+            <span className="mr-1">{item.isOpen ? ' 📂 ' : ' 📁 '}</span>
           ) : (
-            <span className="mr-1">📄</span>
+            <span className="mr-1"> 📄 </span>
           )}
           <span className="truncate">{item.name}</span>
           {item.type === 'folder' && (
             <div className="flex space-x-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150 folder-icons">
               <button
-                className="text-gray-400 hover:text-white p-0.5 rounded-sm"
+                // Adjust icon color based on theme for better visibility
+                className={`${theme === 'vs' ? 'text-gray-600' : 'text-gray-400'} hover:text-white p-0.5 rounded-sm`}
                 onClick={(e) => { e.stopPropagation(); initiateNewItemCreation('file', item.id); }}
                 title="New File in this folder"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-plus"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
               </button>
               <button
-                className="text-gray-400 hover:text-white p-0.5 rounded-sm"
+                // Adjust icon color based on theme for better visibility
+                className={`${theme === 'vs' ? 'text-gray-600' : 'text-gray-400'} hover:text-white p-0.5 rounded-sm`}
                 onClick={(e) => { e.stopPropagation(); initiateNewItemCreation('folder', item.id); }}
                 title="New Folder in this folder"
               >
@@ -572,10 +525,13 @@ $ Click 'Run' to execute code.
         {item.type === 'folder' && item.isOpen && item.children && renderFileSystem(item.children, indent + 1)}
         {item.id === creatingNewItem.parentId && item.isOpen && (
             <div className="flex items-center p-1" style={{ paddingLeft: `${(indent + 1) * 10 + 8}px` }}>
-                <span className="mr-1">{creatingNewItem.type === 'folder' ? '📁' : '📄'}</span>
+                <span className="mr-1">{creatingNewItem.type === 'folder' ? ' 📁 ' : ' 📄 '}</span>
                 <input
                     type="text"
-                    className="new-item-input flex-grow bg-gray-600 text-white border border-blue-500 rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`new-item-input flex-grow
+                      ${theme === 'vs' ? 'bg-white text-gray-900' : 'bg-gray-700 text-white'}
+                      border border-blue-500 rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500`
+                    }
                     value={creatingNewItem.name}
                     onChange={handleNewItemNameChange}
                     onKeyDown={(e) => handleNewItemSubmit(e, creatingNewItem.parentId, creatingNewItem.type, creatingNewItem.name)}
@@ -603,6 +559,7 @@ $ Click 'Run' to execute code.
       java: 'java',
       csharp: 'cs',
       php: 'php',
+      cpp: 'cpp', // Added C++ extension mapping
       html: 'html',
       css: 'css',
       json: 'json',
@@ -610,10 +567,8 @@ $ Click 'Run' to execute code.
       plaintext: 'txt',
     };
     const fileExtension = fileExtensionMap[newLanguage] || 'txt';
-
     const newFileName = `untitled.${fileExtension}`;
     const newFileId = generateId();
-
     const newFile = {
       id: newFileId,
       name: newFileName,
@@ -621,10 +576,8 @@ $ Click 'Run' to execute code.
       language: newLanguage,
       content: getDefaultContent(newLanguage),
     };
-
     // Add the new file to the root of the file system
     setFileSystem(prevFileSystem => [...prevFileSystem, newFile]);
-
     // Directly open the new file in the editor
     handleFileClick(newFile);
   }, [handleFileClick, setFileSystem]);
@@ -683,7 +636,6 @@ $ Click 'Run' to execute code.
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
-
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -709,9 +661,9 @@ $ Click 'Run' to execute code.
       if (['html', 'css', 'json', 'markdown', 'plaintext'].includes(currentLanguage)) {
         let simulatedOutput = '';
         if (currentLanguage === 'html') {
-            simulatedOutput = "HTML content is for rendering in a browser, not direct execution.";
+            simulatedOutput = "HTML content is for rendering in a browser, not direct execution. \n(Check the file content to 'see' the output.)";
         } else if (currentLanguage === 'css') {
-            simulatedOutput = "CSS defines styles, it is not directly executable.";
+            simulatedOutput = "CSS defines styles, it is not directly executable. \n(It modifies the appearance of HTML.)";
         } else if (currentLanguage === 'json') {
             try {
                 JSON.parse(currentFileContent);
@@ -719,45 +671,49 @@ $ Click 'Run' to execute code.
             } catch (error) {
                 simulatedOutput = `JSON Error: ${error.message}`;
             }
+        } else if (currentLanguage === 'markdown') {
+            simulatedOutput = "Markdown is a markup language, not executable code. \n(It's for formatted text.)";
+        } else if (currentLanguage === 'plaintext') {
+            simulatedOutput = "This is a plain text file, not executable code. \n(It contains raw unformatted text.)";
         } else {
             simulatedOutput = `Simulating execution for ${currentLanguage}... Code length: ${currentFileContent.length} characters.`;
         }
         setTerminalOutput(prev => prev + `\nOutput:\n${simulatedOutput}\n$ `);
         setOutputDisplayContent(simulatedOutput); // Set for output tab
         setActivePanelTab('output'); // Switch to output tab after simulated execution
-
       } else {
         const result = await executeCode(currentLanguage, currentFileContent);
-
         let displayOutput = '';
-        if (result.run.stderr) {
-          setTerminalOutput(prev => prev + `\nError:\n${result.run.stderr}\n$ `);
-          displayOutput = result.run.stderr; // Show error in output tab too
-        } else if (result.run.stdout) {
-          setTerminalOutput(prev => prev + `\nOutput:\n${result.run.stdout}\n$ `);
-          displayOutput = result.run.stdout; // Show stdout in output tab
+
+        // Prioritize stdout, then stderr
+        if (result.run && result.run.stdout) {
+            displayOutput = result.run.stdout;
+            setTerminalOutput(prev => prev + `\nOutput:\n${result.run.stdout}\n$ `);
+        } else if (result.run && result.run.stderr) {
+            displayOutput = result.run.stderr;
+            setTerminalOutput(prev => prev + `\nError:\n${result.run.stderr}\n$ `);
         } else {
-          setTerminalOutput(prev => prev + `\nExecution completed with no output.\n$ `);
-          displayOutput = "Execution completed with no output.";
+            displayOutput = "Execution completed with no output.";
+            setTerminalOutput(prev => prev + `\nExecution completed with no output.\n$ `);
         }
         setOutputDisplayContent(displayOutput); // Set for output tab
         setActivePanelTab('output'); // Switch to output tab after execution
       }
     } catch (error) {
       console.error("API execution error:", error);
-      setTerminalOutput(prev => prev + `\nError: Failed to execute code. Please check console for details. ${error.message || ''}\n$ `);
-      setOutputDisplayContent(`Error: Failed to execute code. ${error.message || ''}`); // Set error for output tab
+      const errorMessage = error.message || 'An unknown error occurred during execution.';
+      setTerminalOutput(prev => prev + `\nError: Failed to execute code via Piston API. ${errorMessage}\n$ `);
+      setOutputDisplayContent(`Error: Failed to execute code via Piston API. ${errorMessage}`); // Set error for output tab
       setActivePanelTab('output'); // Switch to output tab on error
     } finally {
       setIsLoadingCode(false); // Reset loading state
     }
-  }, [activeFileId, activeFileLanguage, executeCode, setIsLoadingCode, setOutputDisplayContent, setTerminalOutput, setActivePanelTab, editorRef, activeFileName]);
+  }, [activeFileId, activeFileLanguage, setIsLoadingCode, setOutputDisplayContent, setTerminalOutput, setActivePanelTab, editorRef, activeFileName]);
 
   // Mock function to generate problems based on simple keywords
   const generateProblems = useCallback(() => {
     const problems = [];
     const flatFiles = flattenFileSystem(fileSystem);
-
     flatFiles.forEach(file => {
       if (file.type === 'file' && file.content) {
         if (file.language === 'javascript' || file.language === 'typescript') {
@@ -775,6 +731,13 @@ $ Click 'Run' to execute code.
           if (file.content.includes('class Main')) {
               problems.push(`Info: Found 'class Main' in ${file.name} (Java).`);
           }
+        } else if (file.language === 'cpp') { // Added C++ problem detection
+          if (file.content.includes('#include <vector>')) {
+            problems.push(`Info: C++ code includes <vector>.`);
+          }
+          if (file.content.includes('segmentation fault')) {
+            problems.push(`Runtime error: Possible segmentation fault in ${file.name} (C++).`);
+          }
         }
       }
     });
@@ -785,94 +748,173 @@ $ Click 'Run' to execute code.
     setTerminalOutput('$ Terminal Cleared.\n$ ');
   }, [setTerminalOutput]);
 
-  // Load Monaco Editor scripts from CDN
+  // Effect to load Monaco Editor scripts and create the editor instance ONCE
   useEffect(() => {
-    if (window.monaco) {
-      monacoRef.current = window.monaco;
-      setEditorLoaded(true);
-      return;
+    // Fix: Explicitly configure Monaco workers for better loading in sandboxed environments
+    if (!window.monaco) {
+        self.MonacoEnvironment = {
+            getWorkerUrl: function (moduleId, label) {
+                if (label === 'json') {
+                    return 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/language/json/json.worker.js';
+                }
+                if (label === 'css' || label === 'scss' || label === 'less') {
+                    return 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/language/css/css.worker.js';
+                }
+                if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                    return 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/language/html/html.worker.js';
+                }
+                if (label === 'typescript' || label === 'javascript') {
+                    return 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/language/typescript/ts.worker.js';
+                }
+                return 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/editor/editor.worker.js';
+            }
+        };
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/loader.min.js';
+        script.async = true;
+        script.onload = () => {
+            window.require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs' } });
+            window.require(['vs/editor/editor.main'], () => {
+                monacoRef.current = window.monaco;
+                setEditorLoaded(true); // Signal that Monaco is ready
+                console.log('Monaco Editor scripts loaded from CDN.');
+
+                // Create the editor instance if it hasn't been created yet
+                if (!editorRef.current) {
+                    editorRef.current = monacoRef.current.editor.create(editorContainerRef.current, {
+                        value: '', // Start with empty value
+                        language: 'plaintext', // Default language until a file is opened
+                        theme: theme,
+                        minimap: { enabled: true },
+                        fontSize: 14,
+                        scrollBeyondLastLine: false,
+                        roundedSelection: true,
+                        padding: {
+                            top: 10,
+                            bottom: 10
+                        }
+                    });
+
+                    // Attach the content change listener ONCE during editor creation
+                    editorRef.current.onDidChangeModelContent(() => {
+                        // Use refs to get the latest values of activeFileId and updateFileContent
+                        // This prevents stale closures.
+                        if (activeFileIdRef.current && updateFileContentRef.current) { // Added check for updateFileContentRef.current
+                            const newContent = editorRef.current.getValue();
+                            updateFileContentRef.current(activeFileIdRef.current, newContent);
+                        }
+                    });
+
+                    const handleResize = () => {
+                        editorRef.current?.layout();
+                    };
+                    window.addEventListener('resize', handleResize);
+
+                    // Cleanup for this effect: dispose editor and remove resize listener
+                    return () => {
+                        if (editorRef.current) {
+                            editorRef.current.dispose();
+                            editorRef.current = null;
+                        }
+                        window.removeEventListener('resize', handleResize);
+                    };
+                }
+            });
+        };
+        document.body.appendChild(script);
+        return () => {
+            // Cleanup script tag if component unmounts before script loads
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        };
+    } else if (editorLoaded && editorContainerRef.current && monacoRef.current && !editorRef.current) {
+        // This case handles when monaco is already loaded (e.g., hot reload)
+        // but editorRef.current is null, indicating it needs to be created.
+        editorRef.current = monacoRef.current.editor.create(editorContainerRef.current, {
+            value: '',
+            language: 'plaintext',
+            theme: theme,
+            minimap: { enabled: true },
+            fontSize: 14,
+            scrollBeyondLastLine: false,
+            roundedSelection: true,
+            padding: {
+                top: 10,
+                bottom: 10
+            }
+        });
+        editorRef.current.onDidChangeModelContent(() => {
+            if (activeFileIdRef.current && updateFileContentRef.current) { // Added check for updateFileContentRef.current
+                const newContent = editorRef.current.getValue();
+                updateFileContentRef.current(activeFileIdRef.current, newContent);
+            }
+        });
+        const handleResize = () => {
+            editorRef.current?.layout();
+        };
+        window.addEventListener('resize', handleResize);
+        return () => {
+            if (editorRef.current) {
+                editorRef.current.dispose();
+                editorRef.current = null;
+            }
+            window.removeEventListener('resize', handleResize);
+        };
     }
+  }, [theme, editorLoaded]); // Dependencies: theme to apply on creation, editorLoaded to re-run after script loads
 
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/loader.min.js';
-    script.async = true;
-    script.onload = () => {
-      window.require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs' } });
-      window.require(['vs/editor/editor.main'], () => {
-        monacoRef.current = window.monaco;
-        setEditorLoaded(true);
-        console.log('Monaco Editor scripts loaded from CDN.');
-      });
-    };
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  // Effect to manage the active file in the editor
+  // Effect to manage the active file and update the editor's model
   useEffect(() => {
-    if (editorLoaded && editorContainerRef.current && monacoRef.current) {
+    if (editorLoaded && monacoRef.current && editorRef.current) {
       if (activeFileId) {
         const flatFiles = flattenFileSystem(fileSystem);
         const file = flatFiles.find(f => f.id === activeFileId);
+
         if (file) {
           setActiveFileName(file.name);
           setActiveFileLanguage(file.language);
 
-          if (editorRef.current) {
-            if (editorRef.current.getModel()) {
-              editorRef.current.getModel().dispose();
+          const currentModel = editorRef.current.getModel();
+
+          // Check if the current model in the editor is already for this file
+          // Monaco uses URIs for models, so we can identify them this way.
+          const newFileUri = monacoRef.current.Uri.parse(`file:///${file.id}`);
+
+          if (currentModel && currentModel.uri.toString() === newFileUri.toString()) {
+            // If it's the same file, only update content if it's different.
+            // This prevents resetting the cursor/undo stack when user types.
+            if (currentModel.getValue() !== file.content) {
+                editorRef.current.executeEdits("my-source", [{
+                    range: currentModel.getFullModelRange(),
+                    text: file.content
+                }]);
             }
-            const newModel = monacoRef.current.editor.createModel(file.content, file.language);
-            editorRef.current.setModel(newModel);
-            monacoRef.current.editor.setModelLanguage(newModel, file.language);
+            monacoRef.current.editor.setModelLanguage(currentModel, file.language);
           } else {
-            editorRef.current = monacoRef.current.editor.create(editorContainerRef.current, {
-              value: file.content,
-              language: file.language,
-              theme: theme,
-              minimap: { enabled: true },
-              fontSize: 14,
-              scrollBeyondLastLine: false,
-              roundedSelection: true,
-              padding: {
-                top: 10,
-                bottom: 10
-              }
-            });
-
-            editorRef.current.onDidChangeModelContent(() => {
-              const newContent = editorRef.current.getValue();
-              updateFileContent(activeFileId, newContent);
-            });
-
-            const handleResize = () => {
-              if (editorRef.current) {
-                editorRef.current.layout();
-              }
-            };
-            window.addEventListener('resize', handleResize);
-             return () => {
-              if (editorRef.current) {
-                editorRef.current.dispose();
-                editorRef.current = null;
-              }
-              window.removeEventListener('resize', handleResize);
-            };
+            // If it's a different file or no model, dispose current and create new one
+            if (currentModel) {
+              currentModel.dispose(); // Dispose the old model
+            }
+            const newModel = monacoRef.current.editor.createModel(file.content, file.language, newFileUri);
+            editorRef.current.setModel(newModel);
+            // Monaco will automatically set the language from the model, but this explicit call is harmless
+            // monacoRef.current.editor.setModelLanguage(newModel, file.language);
           }
         }
       } else {
-        if (editorRef.current) {
-          editorRef.current.setValue('');
-          editorRef.current.setModel(null);
+        // If no active file, set editor to a blank state
+        if (editorRef.current.getModel()) {
+          editorRef.current.getModel().dispose();
         }
+        editorRef.current.setModel(null); // Clear the model
         setActiveFileName('No file open');
         setActiveFileLanguage('');
       }
     }
-  }, [activeFileId, editorLoaded, fileSystem, theme, flattenFileSystem, updateFileContent]);
+  }, [activeFileId, editorLoaded, fileSystem, flattenFileSystem, monacoRef, setActiveFileName, setActiveFileLanguage]); // Added setActiveFileName, setActiveFileLanguage to dependencies
+
 
   useEffect(() => {
     if (editorRef.current && monacoRef.current) {
@@ -902,6 +944,53 @@ $ Click 'Run' to execute code.
     };
   }, [contextMenu, creatingNewItem, handleNewItemSubmit, setCreatingNewItem]);
 
+
+  // Drag & Drop handlers for Open Editors
+  const handleOpenEditorDragStart = useCallback((e, fileId) => {
+    e.dataTransfer.setData('text/plain', fileId);
+    setDraggedOpenEditorId(fileId);
+    e.currentTarget.classList.add('opacity-50', 'border-dashed', 'border-blue-500'); // Visual feedback for dragging
+  }, []);
+
+  const handleOpenEditorDragEnd = useCallback((e) => {
+    setDraggedOpenEditorId(null);
+    e.currentTarget.classList.remove('opacity-50', 'border-dashed', 'border-blue-500');
+  }, []);
+
+  const handleOpenEditorDragOver = useCallback((e) => {
+    e.preventDefault(); // Crucial to allow dropping
+    const targetElement = e.currentTarget;
+    if (targetElement.classList.contains('open-editor-item')) {
+      targetElement.classList.add('border-blue-500', 'border-b-2'); // Indicate drop target
+    }
+  }, []);
+
+  const handleOpenEditorDragLeave = useCallback((e) => {
+    e.currentTarget.classList.remove('border-blue-500', 'border-b-2');
+  }, []);
+
+  const handleOpenEditorDrop = useCallback((e, targetFileId) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-blue-500', 'border-b-2'); // Remove drop target visual feedback
+
+    const draggedFileId = e.dataTransfer.getData('text/plain');
+
+    setOpenEditors(prevOpenEditors => {
+      const draggedIndex = prevOpenEditors.findIndex(editor => editor.id === draggedFileId);
+      const targetIndex = prevOpenEditors.findIndex(editor => editor.id === targetFileId);
+
+      if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+        return prevOpenEditors; // No change if invalid or same position
+      }
+
+      const newOpenEditors = [...prevOpenEditors];
+      const [draggedItem] = newOpenEditors.splice(draggedIndex, 1);
+      newOpenEditors.splice(targetIndex, 0, draggedItem);
+      return newOpenEditors;
+    });
+  }, []);
+
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
       {/* Tailwind CSS for Inter font */}
@@ -917,64 +1006,50 @@ $ Click 'Run' to execute code.
           width: 8px;
           height: 8px;
         }
-
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background-color: #888;
           border-radius: 4px;
         }
-
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background-color: #555;
         }
-
         .custom-scrollbar::-webkit-scrollbar-track {
           background-color: #f1f1f1;
         }
-
         /* Dark mode scrollbar */
         .dark .custom-scrollbar::-webkit-scrollbar-thumb {
           background-color: #555;
         }
-
         .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background-color: #777;
         }
-
         .dark .custom-scrollbar::-webkit-scrollbar-track {
           background-color: #333;
         }
-
         /* Editor specific scrollbar */
         .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar {
           width: 8px;
           height: 8px;
         }
-
         .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-thumb {
           background-color: #888;
           border-radius: 4px;
         }
-
         .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-thumb:hover {
           background-color: #555;
         }
-
         .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-track {
           background-color: #f1f1f1;
         }
-
         .vs-dark .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-thumb {
           background-color: #555;
         }
-
         .vs-dark .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-thumb:hover {
           background-color: #777;
         }
-
         .vs-dark .editor-container .monaco-editor .overflow-guard .monaco-scrollable-element ::-webkit-scrollbar-track {
           background-color: #333;
         }
-
         /* Show hover icons for folder */
         .group:hover .folder-icons {
           opacity: 1;
@@ -1045,8 +1120,8 @@ $ Click 'Run' to execute code.
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-plus"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
               </button>
               <button
-                onClick={() => initiateNewItemCreation('folder', null)} // Add to root
                 className="text-gray-400 hover:text-white px-1 rounded-sm"
+                onClick={() => initiateNewItemCreation('folder', null)} // Add to root
                 title="New Folder"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-folder-plus"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v10z"/><line x1="12" x2="12" y1="11" y2="17"/><line x1="9" x2="15" y1="14" y2="14"/></svg>
@@ -1055,6 +1130,24 @@ $ Click 'Run' to execute code.
           </div>
           <div className="flex flex-col custom-scrollbar" ref={explorerContentRef} style={{height: `${explorerSplitHeight * 100}%`}}>
             {renderFileSystem(fileSystem)}
+            {/* NEW BLOCK: For rendering new item input at the root level */}
+            {creatingNewItem.parentId === null && creatingNewItem.type && (
+                <div className="flex items-center p-1" style={{ paddingLeft: `8px` }}>
+                    <span className="mr-1">{creatingNewItem.type === 'folder' ? ' 📁 ' : ' 📄 '}</span>
+                    <input
+                        type="text"
+                        className={`new-item-input flex-grow
+                          ${theme === 'vs' ? 'bg-white text-gray-900' : 'bg-gray-700 text-white'}
+                          border border-blue-500 rounded px-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500`
+                        }
+                        value={creatingNewItem.name}
+                        onChange={handleNewItemNameChange}
+                        onKeyDown={(e) => handleNewItemSubmit(e, creatingNewItem.parentId, creatingNewItem.type, creatingNewItem.name)}
+                        onBlur={(e) => handleNewItemSubmit(e, creatingNewItem.parentId, creatingNewItem.type, creatingNewItem.name)}
+                        autoFocus
+                    />
+                </div>
+            )}
           </div>
 
           {/* Resizer for Explorer/Open Editors split */}
@@ -1068,17 +1161,27 @@ $ Click 'Run' to execute code.
             {openEditors.map(file => (
               <div
                 key={file.id}
-                className={`flex items-center justify-between p-1 rounded-md cursor-pointer hover:bg-gray-700 ${activeFileId === file.id ? 'bg-blue-800 text-white' : ''}`}
+                className={`open-editor-item flex items-center justify-between p-1 rounded-md cursor-pointer hover:bg-gray-700
+                            ${activeFileId === file.id ? 'bg-blue-800 text-white' : ''}
+                            ${draggedOpenEditorId === file.id ? 'opacity-50 border-dashed border-blue-500' : ''}
+                           `}
                 onClick={() => handleFileClick(file)}
                 onContextMenu={(e) => handleContextMenu(e, file)} // Right-click handler for open editors
+                draggable // Make the item draggable
+                onDragStart={(e) => handleOpenEditorDragStart(e, file.id)}
+                onDragEnd={handleOpenEditorDragEnd}
+                onDragOver={handleOpenEditorDragOver}
+                onDrop={(e) => handleOpenEditorDrop(e, file.id)}
+                // Removed onDragEnter as it was causing a ReferenceError
+                onDragLeave={handleOpenEditorDragLeave}
               >
-                <span className="truncate">📄 {file.name}</span>
+                <span className="truncate"> 📄  {file.name}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCloseEditor(file.id); }}
                   className="ml-2 text-gray-400 hover:text-white px-1 rounded-sm"
                   title="Close Editor"
                 >
-                  ✖
+                   ✖
                 </button>
               </div>
             ))}
@@ -1144,7 +1247,7 @@ $ Click 'Run' to execute code.
               {activePanelTab === 'problems' && (
                 <div className="text-yellow-400">
                   {generateProblems().map((problem, index) => (
-                    <p key={index}>⚠️ {problem}</p>
+                    <p key={index}> ⚠️  {problem}</p>
                   ))}
                   {/* Removed hardcoded Webpack messages */}
                 </div>
@@ -1174,7 +1277,7 @@ $ Click 'Run' to execute code.
       <footer className="bg-gray-800 text-white p-2 text-sm flex justify-between items-center rounded-t-lg shadow-inner z-10">
         <div className="flex items-center space-x-4">
           <span>&nbsp;</span> {/* Placeholder for left icons */}
-          <span>📄 {activeFileName} | {activeFileLanguage.toUpperCase()}</span>
+          <span> 📄  {activeFileName} | {activeFileLanguage.toUpperCase()}</span>
         </div>
         <div className="flex items-center space-x-4">
           <span>UTF-8</span>
@@ -1187,19 +1290,19 @@ $ Click 'Run' to execute code.
       {/* Context Menu */}
       {contextMenu.visible && (
         <div
-          className="context-menu absolute bg-gray-700 text-white p-1 rounded-md shadow-lg z-20"
+          className="context-menu absolute bg-gray-700 p-1 rounded-md shadow-lg z-20"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           {contextMenu.item && contextMenu.item.type === 'folder' && (
             <>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-blue-600 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-gray-300 bg-gray-900 hover:bg-blue-600 hover:text-white rounded-sm"
                 onClick={() => { initiateNewItemCreation('file', contextMenu.item.id); setContextMenu({...contextMenu, visible: false}); }}
               >
                 New File
               </button>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-blue-600 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-gray-300 bg-gray-900 hover:bg-blue-600 hover:text-white rounded-sm"
                 onClick={() => { initiateNewItemCreation('folder', contextMenu.item.id); setContextMenu({...contextMenu, visible: false}); }}
               >
                 New Folder
@@ -1210,26 +1313,26 @@ $ Click 'Run' to execute code.
           {contextMenu.item && (
             <>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-blue-600 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-gray-300 bg-gray-900 hover:bg-blue-600 hover:text-white rounded-sm"
                 onClick={handleCopyPath}
               >
                 Copy Path
               </button>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-blue-600 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-gray-300 bg-gray-900 hover:bg-blue-600 hover:text-white rounded-sm"
                 onClick={handleCopyRelativePath}
               >
                 Copy Relative Path
               </button>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-blue-600 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-gray-300 bg-gray-900 hover:bg-blue-600 hover:text-white rounded-sm"
                 onClick={handleShare}
               >
                 Share
               </button>
               <div className="border-t border-gray-600 my-1"></div>
               <button
-                className="block w-full text-left px-3 py-1 text-sm hover:bg-red-600 text-red-300 rounded-sm"
+                className="block w-full text-left px-3 py-1 text-sm text-red-400 bg-gray-900 hover:bg-red-600 hover:text-white rounded-sm"
                 onClick={() => handleDeleteItem(contextMenu.item.id)}
               >
                 Delete
@@ -1243,5 +1346,3 @@ $ Click 'Run' to execute code.
 }
 
 export default App;
-
-
