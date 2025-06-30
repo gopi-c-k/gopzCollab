@@ -131,7 +131,7 @@ async function saveYMapJSONToBackend(room, ymap) {
     const jsonObj = exportYMapAsJSON(ymap);
 
     try {
-      const response = await axios.post(
+      const response = await axios.patch(
         `${process.env.BACKEND_URL}/room/content/update`,
         {
           sessionId: room,
