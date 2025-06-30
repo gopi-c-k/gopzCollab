@@ -64,6 +64,12 @@ wss.on('connection', (conn, req) => {
         if (roomUsers.size === 0) {
           roomUsersMap.delete(room);
           const finalContent = getContent();
+          if (roomUsers.size === 0) {
+            const ymap = docs.get(room)?.getMap('canvasState');
+            if (ymap) {
+              await saveYMapJSONToBackend(room, ymap);
+            }
+          }
 
           if (finalContent?.content) {
             try {
@@ -84,7 +90,7 @@ wss.on('connection', (conn, req) => {
             }
             try {
               const response = await axios.post(
-                `${process.env.BACKEND_URL}/session/end/${room}`,{},
+                `${process.env.BACKEND_URL}/session/end/${room}`, {},
                 {
                   headers: {
                     'Authorization': `Bearer ${process.env.SECRET_KEY}`
@@ -108,3 +114,54 @@ wss.on('connection', (conn, req) => {
 server.listen(port, '0.0.0.0', () => {
   console.log(`✅ WebSocket Server running at http://0.0.0.0:${port}`);
 });
+
+function exportYMapAsJSON(yobjectmap) {
+  const result = {};
+
+  yobjectmap.forEach((value, key) => {
+    if (key.startsWith('id-')) {
+      result[key] = value;
+    }
+  });
+
+  return result;
+}
+async function saveYMapJSONToBackend(room, ymap) {
+  if (ymap) {
+    const jsonObj = exportYMapAsJSON(ymap);
+
+    try {
+      const response = await axios.post(
+        `${process.env.BACKEND_URL}/room/content/update`,
+        {
+          sessionId: room,
+          content: jsonObj,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.SECRET_KEY}`
+          }
+        }
+      );
+
+      console.log(`✅ YMap JSON saved for room ${room}`, response.data);
+    } catch (error) {
+      console.error(`❌ Error saving YMap JSON for room ${room}:`, error.message);
+    }
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.BACKEND_URL}/session/end/${room}`, {},
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SECRET_KEY}`
+        }
+      }
+    );
+
+    console.log("Session activity save and dead", response.data);
+  } catch (error) {
+    console.error(`❌ Failed to dead the session ${room}:`, error.message);
+  }
+}
+

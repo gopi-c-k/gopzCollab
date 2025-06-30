@@ -723,7 +723,7 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
 
         const handlePathCreated = (e) => {
             const path = e.path;
-            const id = `id-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const id = `id-${userName}_${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             path.id = id;
             path.name = `brush-${id}`;
             path.selectable = true;
@@ -1124,7 +1124,7 @@ const AdvancedCanvasEditor = ({ roomName = 'default-room', userName = 'Anonymous
 
 
     const generateNewId = () => {
-        return `cp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        return `id-cp_${userName}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     };
 
     const handleDelete = () => {
