@@ -7,18 +7,29 @@ import Home from './pages/Home';
 import TextEditor from './pages/TextEditor';
 import Notification from './pages/Notification';
 import CanvasEditor from './pages/CanvasEditor';
+
+import CodeEditor from './pages/CodeEditor';
+
 function App() {
   return (
     <Router>
       <Routes>
-        {/* <Route path="/signin" element={<SignIn info={{ theme, prefersDarkMode }} />} /> */}
-        <Route path="/signin" element={<SignIn/>} />
-        <Route path="/signup" element={<SignUp/>} />
-        <Route path="/home" element={<Home/>} />
-        <Route path="/" element={<Home/>} />
-        <Route path='/notification' element={<Notification/>} />
-        <Route path="/editor" element={<TextEditor/>} />
-        <Route path="/canvas/editor" element={<CanvasEditor/>} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/notification" element={<Notification />} />
+        <Route path="/editor" element={<TextEditor />} />
+        <Route path="/canvas/editor" element={<CanvasEditor />} />
+
+        <Route
+          path="/code-editor"
+          element={
+            // ChakraProvider is used *only* for this route.
+         
+                <CodeEditor />
+          }
+        />
       </Routes>
     </Router>
   );
