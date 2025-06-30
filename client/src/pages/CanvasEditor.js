@@ -140,12 +140,11 @@ const AdvancedCanvasEditor = () => {
                 );
 
                 providerRef.current.on('status', event => {
-                    console.log('WebSocket status:', event.status);
+                    // console.log('WebSocket status:', event.status);
                 });
 
                 providerRef.current.on('sync', (isSynced) => {
                     if (isSynced) {
-                        console.log('🆗 Initial Yjs sync complete');
                         syncCompleted = true;
 
                         const canvas = fabricCanvasRef.current;
@@ -224,7 +223,6 @@ const AdvancedCanvasEditor = () => {
         const loadInitialState = () => {
             const canvasJson = ymap.get('canvas');
             if (canvasJson) {
-                console.log("Already Available")
                 canvas.loadFromJSON(canvasJson, () => {
                     rebuildObjectMap();
                     canvas.renderAll();
@@ -267,7 +265,6 @@ const AdvancedCanvasEditor = () => {
                         const existingObject = canvas.getObjects().find(obj => obj.id === jsonObject.id);
 
                         if (existingObject) {
-                            console.log(`Updating existing object with id: ${jsonObject.id}`);
 
                             Object.keys(jsonObject).forEach((key) => {
                                 if (key === 'type' || key === 'version') return;
@@ -421,7 +418,6 @@ const AdvancedCanvasEditor = () => {
     }, [canvasSize.width, canvasSize.height, isSynced]);
 
     const handleCanvasChange = (id, name) => {
-        console.log("Handle Canvas change fn called", id, name)
         const owner = ydoc.clientID;
         const object = objectMapRef.current[id];
 
@@ -443,7 +439,6 @@ const AdvancedCanvasEditor = () => {
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
         if (canvas && syncCompleted) {
-            console.log('✅ Canvas became available after sync. Running rebuild...');
             canvas.clear();
             rebuildCanvasFromYMap(ymap, canvas, objectMapRef);
         }
@@ -451,16 +446,27 @@ const AdvancedCanvasEditor = () => {
 
     function rebuildCanvasFromYMap(ymap, canvas, objectMapRef) {
         const objectsToAdd = [];
-        if(session.isNewSession){
-            ymap=JSON.parse(session.content);
+
+        // If it's a new session, reconstruct the YMap from backend JSON
+        if (session.isNewSession) {
+            const jsonObject = JSON.parse(session.content);
+
+            for (const key in jsonObject) {
+                ymap.set(key, jsonObject[key]);
+            }
         }
+
+
+        // Loop through YMap (works both for real and temp maps)
         ymap.forEach((value, key) => {
             if (key === 'canvas') return;
 
             try {
                 const jsonObject = JSON.parse(value);
                 let shape = null;
+
                 if (jsonObject.type) jsonObject.type = jsonObject.type.toLowerCase();
+
                 switch (jsonObject.type) {
                     case 'rect':
                         shape = new fabric.Rect(jsonObject);
@@ -472,10 +478,7 @@ const AdvancedCanvasEditor = () => {
                         shape = new fabric.Triangle(jsonObject);
                         break;
                     case 'line':
-                        shape = new fabric.Line(
-                            [jsonObject.x1, jsonObject.y1, jsonObject.x2, jsonObject.y2],
-                            jsonObject
-                        );
+                        shape = new fabric.Line([jsonObject.x1, jsonObject.y1, jsonObject.x2, jsonObject.y2], jsonObject);
                         break;
                     case 'polygon':
                     case 'star':
@@ -486,21 +489,16 @@ const AdvancedCanvasEditor = () => {
                         shape = new fabric.Text(jsonObject.text || '', jsonObject);
                         break;
                     case 'path':
-                        if (jsonObject.path) {
-                            shape = new fabric.Path(jsonObject.path, jsonObject);
-                        }
+                        if (jsonObject.path) shape = new fabric.Path(jsonObject.path, jsonObject);
                         break;
                     case 'group':
-                        const groupObjects = (jsonObject.objects || []).map((obj) => {
+                        const groupObjects = (jsonObject.objects || []).map(obj => {
                             try {
                                 switch (obj.type) {
                                     case 'rect': return new fabric.Rect(obj);
                                     case 'circle': return new fabric.Circle(obj);
                                     case 'triangle': return new fabric.Triangle(obj);
-                                    case 'line': return new fabric.Line(
-                                        [obj.x1, obj.y1, obj.x2, obj.y2],
-                                        obj
-                                    );
+                                    case 'line': return new fabric.Line([obj.x1, obj.y1, obj.x2, obj.y2], obj);
                                     case 'path': return new fabric.Path(obj.path, obj);
                                     default:
                                         console.warn('Unsupported group sub-object type:', obj.type);
@@ -523,7 +521,7 @@ const AdvancedCanvasEditor = () => {
                     objectMapRef.current[shape.id] = shape;
                 }
             } catch (e) {
-                console.error('❌ Failed parsing or creating object from Yjs:', key, e);
+                console.error('❌ Failed parsing or creating object from YMap:', key, e);
             }
         });
 
@@ -544,7 +542,6 @@ const AdvancedCanvasEditor = () => {
         const handleObjectMoving = (e) => {
             const target = e.target;
             if (target) {
-                console.log(`Object with id ${target.id} moved to:`, target.left, target.top);
                 handleCanvasChange(target.id, target.name);
             }
         };
@@ -895,8 +892,6 @@ const AdvancedCanvasEditor = () => {
             canvas.setActiveObject(shape);
             setCurrentShape(shape);
             objectMapRef.current[id] = shape;
-            // if(shape.type === 'textbox')   console.log(shape.id);
-            // console.log(shape.type);
             saveToHistory();
             updateShapeVersion();
         }
