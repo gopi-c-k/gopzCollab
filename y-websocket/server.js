@@ -130,7 +130,8 @@ async function saveYMapJSONToBackend(room, ymap) {
   if (ymap) {
     const jsonObj = exportYMapAsJSON(ymap);
     const jsonString = JSON.stringify(jsonObj);
-    try {
+    if(jsonString){
+      try {
       const response = await axios.patch(
         `${process.env.BACKEND_URL}/room/content/update`,
         {
@@ -163,5 +164,6 @@ async function saveYMapJSONToBackend(room, ymap) {
   } catch (error) {
     console.error(`❌ Failed to dead the session ${room}:`, error.message);
   }
+    }
 }
 
