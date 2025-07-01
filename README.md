@@ -23,7 +23,7 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 | Backend     | Node.js, Express, Firebase Admin SDK       |
 | Auth        | Firebase Authentication                    |
 | Deployment  | Vercel (Frontend), Render (Backend)        |
-| Repo Type   | Monorepo (`/client` + `/server` folders)   |
+| Repo Type   | Monorepo (`/client` + `/server` + `/y-websocket` folders)   |
 
 ---
 
@@ -40,6 +40,8 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 ├── server         # Node.js backend
 │   ├── firebaseAdmin.js
 │   ├── middleware/auth.js
+│   └── server.js
+├── y-websocket         # Web Socket for yjs
 │   └── server.js
 ├── README.md
 
