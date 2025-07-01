@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from "react-router-dom";
-import { Bell, FilePlus, UserPlus, Moon, Sun, Search, Plus, Trash2, Info, Clock, X, Activity, LogOut, FileText, Users } from 'lucide-react';
+import { Bell, FilePlus, UserPlus, Moon, Sun, Search, Plus, Trash2, MessageSquareShare, Info, Clock, X, Activity, LogOut, FileText, Users } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import Notification from '../components/Notification';
 import mammoth from 'mammoth';
@@ -54,7 +54,6 @@ const Home = () => {
         const response = await axiosInstance('/user/fetch');
         if (response.status === 200) {
           const data = response.data;
-          console.log(data);
           setUserName(data.name);
           setProfilePic(data.profilePic || `https://ui-avatars.com/api/?name=${data.name}&background=random`);
           setCreatedRooms(data.createdRooms);
@@ -90,6 +89,23 @@ const Home = () => {
   const [fileName, setFileName] = useState('');
   const [isFileLoading, setIsFileLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const copyNumberToClipboard = async (number) => {
+    try {
+      await navigator.clipboard.writeText(number.toString());
+      setShowSnackbar(true);
+      setSnackbarMessage('✅ Room code copied to clipboard!');
+      setSnackbarType('success');
+    } catch (err) {
+      setShowSnackbar(true);
+      setSnackbarMessage('❌ Failed to copy room code.');
+      setSnackbarType('error');
+    } finally {
+      setTimeout(() => setShowSnackbar(false), 3000);
+    }
+  };
+
+
 
   const handleCreateRoom = async () => {
     // Logic to create a room 
@@ -625,6 +641,16 @@ const Home = () => {
                       </div>
                     </div>
                     <div className="flex space-x-2">
+                      {room.code && (<button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyNumberToClipboard(room.code);
+                        }}
+                        className="p-1.5 rounded-full bg-white/90 hover:bg-gray-100 dark:bg-gray-800/90 dark:hover:bg-gray-700 backdrop-blur-sm shadow-sm transition-all duration-200 hover:scale-110 group-hover:shadow-md"
+                        title="Copy Room Code"
+                      >
+                        <MessageSquareShare className="text-gray-600 dark:text-gray-300 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors duration-200" size={18} />
+                      </button>)}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -881,7 +907,7 @@ const Home = () => {
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="text">Text</option>
-                  <option value="code">Code</option>
+                  {/* <option value="code">Code</option> */}
                   <option value="canvas">Canvas</option>
                 </select>
                 {roomType === 'text' && (<>

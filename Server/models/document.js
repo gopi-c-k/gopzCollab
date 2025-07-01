@@ -36,7 +36,6 @@ const documentSchema = new mongoose.Schema({
     unique: true,
     match: /^\d{6}$/, 
   },
-  // 💬 For text/code
   content: {
     type: String,
     default: '',

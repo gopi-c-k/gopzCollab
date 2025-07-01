@@ -16,7 +16,7 @@ const fetchUser = async (req, res) => {
 
     // === Get Created Rooms ===
     const createdRooms = await Document.find({ owner: userId })
-      .select('_id title type updatedAt owner collaborators lastSession')
+      .select('_id title type updatedAt owner collaborators lastSession code')
       .populate('owner', 'name profilePic')
       .populate('collaborators', 'name profilePic')
       .lean();
