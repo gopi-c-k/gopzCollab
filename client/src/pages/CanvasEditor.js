@@ -11,7 +11,6 @@ import {
     Triangle,
     Minus,
     Pencil,
-    ArrowRight,
     Trash2,
     Layers,
     ChevronUp,
@@ -21,47 +20,24 @@ import {
     Undo,
     Redo,
     Bold,
-    Italic, Paintbrush2, Sparkles,
-    Underline,
+    Italic, Paintbrush2, Sparkles, CircleX,
     AlignLeft,
     AlignCenter,
     AlignRight,
-    Palette,
     Star,
-    Lock,
-    Unlock,
-    Users,
-    Unlink,
-    Sliders,
-    Code,
-    Link,
     Copy,
     Clipboard,
-    Scissors,
     Eye,
     EyeOff,
     Grid,
-    Ruler,
     ZoomIn,
     ZoomOut,
     Maximize2,
-    Plus,
-    Search,
-    Folder,
-    File,
-    Share2,
-    Settings,
-    HelpCircle,
     Sun,
     Moon,
-    RotateCcw,
-    FlipHorizontal,
-    FlipVertical,
     MousePointer,
-    Move,
     Hexagon,
     PencilRuler,
-    Droplet,
     RefreshCw,
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -164,6 +140,7 @@ const AdvancedCanvasEditor = () => {
             indexeddbProviderRef.current = new IndexeddbPersistence(roomName, ydoc);
             awarenessRef.current.setLocalStateField('user', {
                 name: userName,
+                profilePic,
                 color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
                 cursor: { x: 0, y: 0 }
             });
@@ -1338,14 +1315,6 @@ const AdvancedCanvasEditor = () => {
         }
     }, [activeTool, brushType, brushColor, brushSize]);
 
-    // Collaborator status indicator
-    const CollaboratorStatus = () => (
-        <div className="fixed top-16 right-4 flex items-center space-x-2">
-            <div className={`px-2 py-1 rounded-full text-xs ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                {Object.keys(collaborators).length + 1} online
-            </div>
-        </div>
-    );
     if (!session) {
         return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600"></div>
@@ -1435,6 +1404,22 @@ const AdvancedCanvasEditor = () => {
 
                 {/* Right Controls */}
                 <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap gap-2 p-2">
+                        {Object.entries(collaborators).map(([clientId, collaborator]) => (
+                            collaborator.profilePic && (
+                                <div key={clientId} className="flex flex-col items-center text-center">
+                                    <img
+                                        src={collaborator.profilePic}
+                                        alt={collaborator.name}
+                                        className="w-8 h-8 rounded-full object-cover border-2"
+                                        style={{ borderColor: collaborator.color }}
+                                    />
+                                    <span className={`text-xs mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{collaborator.name}</span>
+                                </div>
+                            )
+                        ))}
+                    </div>
+                    <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
                     <ToolButton
                         icon={darkMode ? Sun : Moon}
                         onClick={() => setDarkMode(!darkMode)}
@@ -1450,6 +1435,12 @@ const AdvancedCanvasEditor = () => {
                         onClick={() => exportCanvas('svg')}
                         title="Export SVG"
                     />
+                    <ToolButton
+                        icon={CircleX}
+                        onClick={() => navigate('/home')}
+                        title={Object.keys(collaborators).length === 0 ? 'End the session' : 'Leave the session'}
+                    />
+
                 </div>
             </div>
 
@@ -1585,9 +1576,6 @@ const AdvancedCanvasEditor = () => {
                     >
                         X: {Math.floor(mousePos.x)}, Y: {Math.floor(mousePos.y)}
                     </div>
-
-                    {/* Collaborator status */}
-                    <CollaboratorStatus />
                 </div>
 
                 {/* Right Panels */}

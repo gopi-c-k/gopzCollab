@@ -31,18 +31,12 @@ const documentSchema = new mongoose.Schema({
   code: {
     type: String,
     unique: true,
-    match: /^\d{6}$/, // Ensures exactly 6 digits
+    match: /^\d{6}$/, 
   },
   // 💬 For text/code
   content: {
     type: String,
     default: '',
-  },
-
-  // 🎨 For canvas
-  canvasData: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {},
   },
 
   createdAt: {
