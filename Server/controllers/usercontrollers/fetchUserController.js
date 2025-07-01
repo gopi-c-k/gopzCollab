@@ -44,7 +44,7 @@ const fetchUser = async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select('_id title type updatedAt owner collaborators')
+      .select('_id title type updatedAt owner collaborators activeSession')
       .populate('owner', 'name profilePic')
       .populate('collaborators', 'name profilePic')
       .lean();
@@ -72,13 +72,15 @@ const fetchUser = async (req, res) => {
 
     const recentlyEditedByYou = allRooms
       .filter(doc => doc.lastSession && relevantSessionIds.includes(doc.lastSession.toString()))
-      .slice(0, 10) // Limit to 10 rooms
+      .slice(0, 10) 
       .map(doc => ({
         _id: doc._id,
         title: doc.title,
         type: doc.type,
         owner: doc.owner,
-        collaborators: doc.collaborators
+        collaborators: doc.collaborators,
+        updatedAt: doc.updatedAt,
+        activeSession: doc.activeSession
       }));
 
     // === Notifications Count ===
