@@ -155,16 +155,12 @@ req.user = decoded;
 * Connect to same GitHub repo
 * Root directory: `/server`
 * Start command: `node server.js`
-* Add environment variables if needed
 
----
+### WebSocket (Render)
 
-## ✅ Features To Build Next
-
-* 🔵 Realtime messaging (Socket.io or Firebase Realtime DB)
-* 🗂️ File sharing & collaborative notes
-* 👥 Group and team features
-* 🌐 Language & timezone-aware settings
+* Connect to same GitHub repo
+* Root directory: `/y-websocket`
+* Start command: `node server.js`
 
 ---
 
