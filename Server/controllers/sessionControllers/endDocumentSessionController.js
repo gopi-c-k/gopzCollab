@@ -22,6 +22,8 @@ const endDocumentSession = async (req, res) => {
     await session.save();
 
     document.activeSession = undefined;
+    document.updatedAt = Date.now();
+    document.lastSession = session._id;
     await document.save();
 
     const notifications = [];

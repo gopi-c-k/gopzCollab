@@ -46,6 +46,7 @@ const Home = () => {
         const response = await axiosInstance('/user/fetch');
         if (response.status === 200) {
           const data = response.data;
+          console.log(date);
           setUserName(data.name);
           setProfilePic(data.profilePic);
           setCreatedRooms(data.createdRooms);

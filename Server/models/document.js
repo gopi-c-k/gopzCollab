@@ -21,7 +21,10 @@ const documentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CollabSession',
   },
-
+  lastSession: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CollabSession',
+  },
   collaborators: [
     {
       type: mongoose.Schema.Types.ObjectId,
