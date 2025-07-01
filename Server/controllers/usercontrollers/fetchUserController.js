@@ -6,34 +6,36 @@ const CollabSession = require('../../models/collabSession');
 const fetchUser = async (req, res) => {
   try {
     const { email } = req.user;
-
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     const userId = user._id;
 
+    // === Get Created Rooms ===
     const createdRooms = await Document.find({ owner: userId })
-      .select('_id title type updatedAt')
+      .select('_id title type updatedAt owner collaborators lastSession')
+      .populate('owner', 'name profilePic')
+      .populate('collaborators', 'name profilePic')
       .lean();
 
-    createdRooms.forEach(room => {
-      room.owner = true;
-    });
+    createdRooms.forEach(room => room.ownerStatus = true);
 
+    // === Get Joined Rooms ===
     const joinedRooms = await Document.find({
       collaborators: userId,
       owner: { $ne: userId }
     })
-      .select('_id title type updatedAt')
+      .select('_id title type updatedAt owner collaborators lastSession')
+      .populate('owner', 'name profilePic')
+      .populate('collaborators', 'name profilePic')
       .lean();
 
-    joinedRooms.forEach(room => {
-      room.owner = false;
-    });
+    joinedRooms.forEach(room => room.ownerStatus = false);
 
-
+    // === Recently Active Rooms ===
     const recentlyActiveRooms = await Document.find({
       $or: [
         { owner: userId },
@@ -42,43 +44,50 @@ const fetchUser = async (req, res) => {
     })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select('_id title type updatedAt')
+      .select('_id title type updatedAt owner collaborators')
+      .populate('owner', 'name profilePic')
+      .populate('collaborators', 'name profilePic')
       .lean();
 
+    // === Recently Edited By You ===
+    const allRooms = [...createdRooms, ...joinedRooms];
 
-    const docsWithLastSession = await Document.find({
-      lastSession: { $exists: true },
+    // Sort by updatedAt descending
+    allRooms.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    // Filter rooms where user was a participant or creator in last session
+    const roomsWithLastSessionIds = allRooms
+      .filter(doc => doc.lastSession)
+      .map(doc => doc.lastSession);
+
+    const relevantSessions = await CollabSession.find({
+      _id: { $in: roomsWithLastSessionIds },
       $or: [
-        { owner: userId },
-        { collaborators: userId }
+        { participants: userId },
+        { creator: userId }
       ]
-    })
-      .select('_id title type lastSession')
-      .lean();
-
-    const sessionIds = docsWithLastSession.map(doc => doc.lastSession);
-
-    const sessions = await CollabSession.find({
-      _id: { $in: sessionIds },
-      participants: userId
     }).select('_id').lean();
 
-    const userEditedSessionIds = sessions.map(s => s._id.toString());
+    const relevantSessionIds = relevantSessions.map(session => session._id.toString());
 
-    const recentlyEditedByYou = docsWithLastSession.filter(doc =>
-      userEditedSessionIds.includes(doc.lastSession.toString())
-    ).map(doc => ({
-      _id: doc._id,
-      title: doc.title,
-      type: doc.type
-    }));
+    const recentlyEditedByYou = allRooms
+      .filter(doc => doc.lastSession && relevantSessionIds.includes(doc.lastSession.toString()))
+      .slice(0, 10) // Limit to 10 rooms
+      .map(doc => ({
+        _id: doc._id,
+        title: doc.title,
+        type: doc.type,
+        owner: doc.owner,
+        collaborators: doc.collaborators
+      }));
 
+    // === Notifications Count ===
     const notificationsCount = await Notification.countDocuments({
       user: userId,
       isRead: false
     });
 
-
+    // === Response ===
     return res.status(200).json({
       name: user.name,
       profilePic: user.profilePic,
