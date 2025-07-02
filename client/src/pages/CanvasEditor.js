@@ -1652,7 +1652,7 @@ const AdvancedCanvasEditor = () => {
                     </div>
 
                     {/* Zoom Controls */}
-                    <div className={`fixed bottom-4 right-80 flex items-center space-x-2 bg-white ${darkMode && 'dark:bg-gray-800'} p-2 rounded  ${darkMode ? 'bg-gray-800 shadow-lg shadow-black/40' : 'bg-white shadow-md shadow-gray-300'}`}>
+                    <div className={`fixed bottom-4 right-80 flex items-center space-x-2 p-2 rounded  ${darkMode ? 'bg-gray-800 shadow-lg shadow-black/40' : 'bg-white shadow-md shadow-gray-300'}`}>
                         <ZoomOverlayButton icon={ZoomOut} onClick={zoomOut} title="Zoom Out" />
                         <span className={`px-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                             {zoom}%
