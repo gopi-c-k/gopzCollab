@@ -6,7 +6,7 @@ const verifySession = async (req, res, next) => {
   const { sessionId } = req.params;
 
   try {
-    const session = await CollabSession.findById(sessionId).populate('participants document');
+    const session = await CollabSession.findById(sessionId).populate('participants docId');
     const user = await User.findOne({ email: req.user.email })
     req.locals = req.locals || {};
     req.locals.user = user;
@@ -19,7 +19,7 @@ const verifySession = async (req, res, next) => {
     if (!session.participants.some(p => p._id.toString() === req.locals.user._id.toString())) {
       return res.status(403).json({ message: 'You are not a participant in this session' });
     }
-    const document = await Document.findById(session.document).populate('owner collaborators');
+    const document = await Document.findById(session.docId).populate('owner collaborators');
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
