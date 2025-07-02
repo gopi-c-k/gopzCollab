@@ -27,7 +27,7 @@ const verifySession = async (req, res, next) => {
       return res.status(400).json({ message: 'This session is not the active session for the document' });
     }
     if (!document.collaborators.some(c => c._id.toString() === req.locals.user._id.toString()) &&
-      document.owner._id.toString() !== req.user._id.toString()) {
+      document.owner._id.toString() !== req.locals.user._id.toString()) {
       return res.status(403).json({ message: 'You do not have permission to access this session' });
     }
     res.locals.session = session;
