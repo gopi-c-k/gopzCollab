@@ -129,41 +129,42 @@ function exportYMapAsJSON(yobjectmap) {
 async function saveYMapJSONToBackend(room, ymap) {
   if (ymap) {
     const jsonObj = exportYMapAsJSON(ymap);
-    const jsonString = JSON.stringify(jsonObj);
-    if(jsonString){
+    if (Object.keys(jsonObj).length > 0) {
+      const jsonString = JSON.stringify(jsonObj);
       try {
-      const response = await axios.patch(
-        `${process.env.BACKEND_URL}/room/content/update`,
-        {
-          sessionId: room,
-          content: jsonString,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.SECRET_KEY}`
+        const response = await axios.patch(
+          `${process.env.BACKEND_URL}/room/content/update`,
+          {
+            sessionId: room,
+            content: jsonString,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.SECRET_KEY}`
+            }
           }
-        }
-      );
+        );
 
-      console.log(`✅ YMap JSON saved for room ${room}`, response.data);
-    } catch (error) {
-      console.error(`❌ Error saving YMap JSON for room ${room}:`, error.message);
-    }
-  }
-  try {
-    const response = await axios.post(
-      `${process.env.BACKEND_URL}/session/end/${room}`, {},
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.SECRET_KEY}`
-        }
+        console.log(`✅ YMap JSON saved for room ${room}`, response.data);
+      } catch (error) {
+        console.error(`❌ Error saving YMap JSON for room ${room}:`, error.message);
       }
-    );
 
-    console.log("Session activity save and dead", response.data);
-  } catch (error) {
-    console.error(`❌ Failed to dead the session ${room}:`, error.message);
-  }
+      try {
+        const response = await axios.post(
+          `${process.env.BACKEND_URL}/session/end/${room}`, {},
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.SECRET_KEY}`
+            }
+          }
+        );
+
+        console.log("Session activity save and dead", response.data);
+      } catch (error) {
+        console.error(`❌ Failed to dead the session ${room}:`, error.message);
+      }
     }
+  }
 }
 
