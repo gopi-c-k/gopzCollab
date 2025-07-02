@@ -437,6 +437,16 @@ const RichTextEditor = () => {
             className='w-44'
           />
           <h1 className="text-2xl font-bold">Text Editor</h1>
+          
+          {/* Ping */}
+          <div className="flex items-center space-x-2">
+            <div className={`h-3 w-3 rounded-full ${getDotStyle()}`}></div>
+            <span className="text-sm">
+              {status === 'pinging' && 'Pinging...'}
+              {status === 'success' && 'Pinged'}
+              {status === 'error' && 'Ping failed'}
+            </span>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
@@ -740,16 +750,6 @@ const RichTextEditor = () => {
           </div>
 
           <div className={`w-px h-6 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
-
-          {/* Ping */}
-          <div className="flex items-center space-x-2">
-            <div className={`h-3 w-3 rounded-full ${getDotStyle()}`}></div>
-            <span className="text-sm">
-              {status === 'pinging' && 'Pinging...'}
-              {status === 'success' && 'Pinged'}
-              {status === 'error' && 'Ping failed'}
-            </span>
-          </div>
         </div>
 
         {/* Color Picker */}

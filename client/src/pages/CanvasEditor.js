@@ -1485,7 +1485,7 @@ const AdvancedCanvasEditor = () => {
                     <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
                     <div className="flex items-center space-x-2">
                         <div className={`h-3 w-3 rounded-full ${getDotStyle()}`}></div>
-                        <span className="text-sm">
+                        <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} text-sm`}>
                             {status === 'pinging' && 'Pinging...'}
                             {status === 'success' && 'Pinged'}
                             {status === 'error' && 'Ping failed'}

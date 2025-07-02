@@ -17,7 +17,7 @@ router.post(
     verifySocket,
     endDocumentSession
 );
-router.get('/ping/:sessionId',SessionMiddleware, (req, res) => {
+router.get('/ping/:sessionId',AuthMiddleware,SessionMiddleware, (req, res) => {
   res.status(200).json({ message: 'Pinged Successfully' });
 });
 
