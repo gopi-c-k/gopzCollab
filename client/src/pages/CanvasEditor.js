@@ -43,7 +43,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import Message from '../components/Message';
 import { useNavigate } from "react-router-dom";
-
+import axiosInstance from '../api/axiosInstance';
 
 
 const AdvancedCanvasEditor = () => {
@@ -96,6 +96,9 @@ const AdvancedCanvasEditor = () => {
     const awarenessRef = useRef(new awareness.Awareness(ydocRef.current));
     const indexeddbProviderRef = useRef(null);
     const providerRef = useRef(null);
+
+    // For Ping
+    const [status, setStatus] = useState('idle');
 
     // Initialize YJS and collaboration
     useEffect(() => {
@@ -194,6 +197,27 @@ const AdvancedCanvasEditor = () => {
             moveCursor: 'move',
             allowTouchScrolling: true,
         });
+        const handleSelect = (e) => {
+            if (e.selected && e.selected.length === 1) {
+                const obj = objectMapRef.current[e.selected[0].id];
+                setSelectedObject(obj);
+                setSelectedObjects([]);
+            } else if (e.selected && e.selected.length > 1) {
+                setSelectedObject(null);
+
+                const objects = e.selected.map((item) => {
+                    return objectMapRef.current[item.id];
+                });
+
+                setSelectedObjects(objects);
+            } else {
+                setSelectedObject(null);
+                setSelectedObjects([]);
+            }
+        };
+        canvas.on('selection:created', handleSelect);
+        canvas.on('selection:updated', handleSelect);
+        canvas.on('selection:cleared', () => setSelectedObject(null));
 
         fabricCanvasRef.current = canvas;
         setCanvas(canvas);
@@ -700,6 +724,64 @@ const AdvancedCanvasEditor = () => {
         rebuildObjectMap();
     }, [handleCanvasChange, saveToHistory]);
 
+    // Backend Ping
+    useEffect(() => {
+        let errorTimeout;
+
+        const ping = async () => {
+            setStatus('pinging');
+            try {
+                const response = await axiosInstance.get(`/session/ping/${session_id}`);
+                if (response.status === 200) {
+                    setStatus('success');
+
+                    // Clear any existing error timeout
+                    if (errorTimeout) {
+                        clearTimeout(errorTimeout);
+                        errorTimeout = null;
+                    }
+                } else {
+                    handlePingError();
+                }
+            } catch (error) {
+                console.error('❌ Ping failed:', error.message);
+                handlePingError();
+            }
+        };
+
+        const handlePingError = () => {
+            setStatus('error');
+
+            // Start a 20-second countdown before navigating
+            errorTimeout = setTimeout(() => {
+                navigate('/home');
+            }, 20000);
+        };
+
+        ping();
+
+        const interval = setInterval(ping, 50000); // Ping every 50 seconds
+
+        return () => {
+            clearInterval(interval);
+            if (errorTimeout) {
+                clearTimeout(errorTimeout);
+            }
+        };
+    }, []);
+
+    const getDotStyle = () => {
+        if (status === 'pinging') {
+            return 'bg-green-400 animate-ping';
+        }
+        if (status === 'success') {
+            return 'bg-green-500';
+        }
+        if (status === 'error') {
+            return 'bg-red-500';
+        }
+        return 'bg-gray-400';
+    };
 
     // Brush 
     useEffect(() => {
@@ -1276,14 +1358,14 @@ const AdvancedCanvasEditor = () => {
     };
 
     const updateTextProp = (prop, value) => {
-        if (canvas && selectedObject && selectedObject.type === 'textbox' && selectedObject.id) {
+        if (canvas && selectedObject && (activeTool === 'text' || selectedObject?.type === 'text' || selectedObject.type === 'textbox') && selectedObject.id) {
             const selectedObjectUsage = objectMapRef.current[selectedObject.id]
             selectedObjectUsage.set(prop, value);
             canvas.requestRenderAll();
-            setSelectedObject(prev => ({
-                ...prev,
-                [prop]: value,
-            }));
+            // setSelectedObject(prev => ({
+            //     ...prev,
+            //     [prop]: value,
+            // }));
 
             saveToHistory();
             updateShapeVersion();
@@ -1399,6 +1481,15 @@ const AdvancedCanvasEditor = () => {
                             }}
                             title="Reset Canvas"
                         />
+                    </div>
+                    <div className={`w-px h-6 ${darkMode ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                    <div className="flex items-center space-x-2">
+                        <div className={`h-3 w-3 rounded-full ${getDotStyle()}`}></div>
+                        <span className="text-sm">
+                            {status === 'pinging' && 'Pinging...'}
+                            {status === 'success' && 'Pinged'}
+                            {status === 'error' && 'Ping failed'}
+                        </span>
                     </div>
                 </div>
 
@@ -1758,7 +1849,7 @@ const AdvancedCanvasEditor = () => {
                                     </label>
                                 </div>
                                 {/* Text Properties */}
-                                {selectedObject?.type === 'textbox' && (
+                                {(activeTool === 'text' || selectedObject?.type === 'textbox' || selectedObject?.type === 'text') && (
                                     <div className="space-y-4">
 
                                         {/* Font Size */}
@@ -1798,7 +1889,7 @@ const AdvancedCanvasEditor = () => {
                                                     updateTextProp('fontWeight', selectedObject.fontWeight === 'bold' ? 'normal' : 'bold')
                                                 }}
                                                 title="Bold"
-                                                disabled={!selectedObject || selectedObject.type !== 'textbox'}
+                                                disabled={!selectedObject || (selectedObject.type !== 'textbox' && selectedObject.type !== 'text')}
                                             />
                                             <ToolButton
                                                 icon={Italic}
@@ -1807,7 +1898,7 @@ const AdvancedCanvasEditor = () => {
                                                     updateTextProp('fontStyle', selectedObject.fontStyle === 'italic' ? 'normal' : 'italic')
                                                 }}
                                                 title="Italic"
-                                                disabled={!selectedObject || selectedObject.type !== 'textbox'}
+                                                disabled={!selectedObject || (selectedObject.type !== 'textbox' && selectedObject.type !== 'text')}
                                             />
                                         </div>
 
@@ -1818,21 +1909,21 @@ const AdvancedCanvasEditor = () => {
                                                 isActive={selectedObject?.textAlign === 'left'}
                                                 onClick={() => updateTextProp('textAlign', 'left')}
                                                 title="Bold"
-                                                disabled={!selectedObject || selectedObject.type !== 'textbox'}
+                                                disabled={!selectedObject || (selectedObject.type !== 'textbox' && selectedObject.type !== 'text')}
                                             />
                                             <ToolButton
                                                 icon={AlignCenter}
                                                 isActive={selectedObject?.textAlign === 'center'}
                                                 onClick={() => updateTextProp('textAlign', 'center')}
                                                 title="Italic"
-                                                disabled={!selectedObject || selectedObject.type !== 'textbox'}
+                                                disabled={!selectedObject || (selectedObject.type !== 'textbox' && selectedObject.type !== 'text')}
                                             />
                                             <ToolButton
                                                 icon={AlignRight}
                                                 isActive={selectedObject?.textAlign === 'right'}
                                                 onClick={() => updateTextProp('textAlign', 'right')}
                                                 title="Bold"
-                                                disabled={!selectedObject || selectedObject.type !== 'textbox'}
+                                                disabled={!selectedObject || (selectedObject.type !== 'textbox' && selectedObject.type !== 'text')}
                                             />
                                         </div>
 

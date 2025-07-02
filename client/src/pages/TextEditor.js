@@ -40,6 +40,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import CodeBlock from '@tiptap/extension-code-block'
 import { useLocation } from 'react-router-dom';
 import Message from '../components/Message'
+import axiosInstance from '../api/axiosInstance';
 
 const RichTextEditor = () => {
   const location = useLocation();
@@ -52,6 +53,9 @@ const RichTextEditor = () => {
   const [tableModalShow, setTableModalShow] = useState(false)
   const [open, setOpen] = useState(false);
   const [viewers, setViewers] = useState([]);
+
+  // For Ping
+  const [status, setStatus] = useState('idle');
 
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
@@ -270,6 +274,65 @@ const RichTextEditor = () => {
       editor.chain().focus().setImage({ src: url }).run()
     }
   }
+
+  // Backend Ping
+  useEffect(() => {
+    let errorTimeout;
+
+    const ping = async () => {
+      setStatus('pinging');
+      try {
+        const response = await axiosInstance.get(`/session/ping/${session_id}`);
+        if (response.status === 200) {
+          setStatus('success');
+
+          // Clear any existing error timeout
+          if (errorTimeout) {
+            clearTimeout(errorTimeout);
+            errorTimeout = null;
+          }
+        } else {
+          handlePingError();
+        }
+      } catch (error) {
+        console.error('❌ Ping failed:', error.message);
+        handlePingError();
+      }
+    };
+
+    const handlePingError = () => {
+      setStatus('error');
+
+      // Start a 20-second countdown before navigating
+      errorTimeout = setTimeout(() => {
+        window.location.href = '/home';
+      }, 20000);
+    };
+
+    ping();
+
+    const interval = setInterval(ping, 50000); // Ping every 50 seconds
+
+    return () => {
+      clearInterval(interval);
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, []);
+
+  const getDotStyle = () => {
+    if (status === 'pinging') {
+      return 'bg-green-400 animate-ping';
+    }
+    if (status === 'success') {
+      return 'bg-green-500';
+    }
+    if (status === 'error') {
+      return 'bg-red-500';
+    }
+    return 'bg-gray-400';
+  };
 
   const saveContent = (format = 'html') => {
     const html = editor.getHTML();
@@ -675,6 +738,18 @@ const RichTextEditor = () => {
               <Palette className="w-4 h-4" />
             </button>
           </div>
+
+          <div className={`w-px h-6 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+
+          {/* Ping */}
+          <div className="flex items-center space-x-2">
+            <div className={`h-3 w-3 rounded-full ${getDotStyle()}`}></div>
+            <span className="text-sm">
+              {status === 'pinging' && 'Pinging...'}
+              {status === 'success' && 'Pinged'}
+              {status === 'error' && 'Ping failed'}
+            </span>
+          </div>
         </div>
 
         {/* Color Picker */}
@@ -937,7 +1012,7 @@ const RichTextEditor = () => {
         </details>
       </div>
       <div className="fixed bottom-4 right-4 z-50">
-        <Message darkMode={isDarkMode} yChatArray={yChatArray} username={name}/>
+        <Message darkMode={isDarkMode} yChatArray={yChatArray} username={name} />
       </div>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
