@@ -6,7 +6,7 @@ const verifySession = async (req, res, next) => {
   const { sessionId } = req.params;
 
   try {
-    const session = await CollabSession.findById(sessionId).populate('participants');
+    const session = await CollabSession.findById(sessionId).populate('participants document');
     const user = await User.findOne({ email: req.user.email })
     req.locals = req.locals || {};
     req.locals.user = user;
