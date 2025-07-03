@@ -31,6 +31,16 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 
 ---
 
+## Architecture Diagram
+![Architect Diagram](client/public/assets/images/architect.jpg)
+
+---
+
+## Demo Video
+[![Watch the video](https://img.youtube.com/vi/hx0Thp8EOwk/0.jpg)](https://www.youtube.com/watch?v=hx0Thp8EOwk)
+
+---
+
 ## 📁 Folder Structure
 
 ```
