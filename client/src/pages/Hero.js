@@ -15,7 +15,7 @@ function Hero() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         await storeFirebaseToken();
-        navigate("/dashboard"); // redirect to app dashboard
+        navigate("/home"); // redirect to app dashboard
       }
     });
     return () => unsubscribe();
