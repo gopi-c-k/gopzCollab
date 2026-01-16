@@ -33,6 +33,7 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 
 ## Architecture Diagram
 ![Architect Diagram](client/public/assets/images/architect.jpg)
+![System Architecture](client/public/assets/images/GopzCollab.png)
 
 ---
 
@@ -44,12 +45,85 @@ GopzCollab is a modern real-time collaboration platform built for teams and indi
 ## 📁 Folder Structure
 
 ```
+Directory structure:
+└── gopi-c-k-gopzcollab/
+    ├── README.md
+    ├── client/
+    │   ├── README.md
+    │   ├── package.json
+    │   ├── postcss.config.js
+    │   ├── tailwind.config.js
+    │   ├── public/
+    │   │   ├── index.html
+    │   │   ├── manifest.json
+    │   │   └── robots.txt
+    │   └── src/
+    │       ├── App.css
+    │       ├── App.js
+    │       ├── App.test.js
+    │       ├── firebase.js
+    │       ├── index.css
+    │       ├── index.js
+    │       ├── reportWebVitals.js
+    │       ├── setupTests.js
+    │       ├── api/
+    │       │   ├── axiosInstance.js
+    │       │   └── storeToken.js
+    │       ├── components/
+    │       │   ├── Message.js
+    │       │   └── Notification.js
+    │       └── pages/
+    │           ├── Hero.js
+    │           ├── Home.js
+    │           ├── Notification.js
+    │           ├── Sample.js
+    │           ├── SignIn.js
+    │           ├── SignUp.js
+    │           └── TextEditor.js
+    ├── Server/
+    │   ├── firebase.js
+    │   ├── firebaseConfig.js
+    │   ├── package.json
+    │   ├── server.js
+    │   ├── config/
+    │   │   ├── cloudinary.js
+    │   │   └── db.js
+    │   ├── controllers/
+    │   │   ├── documentControllers/
+    │   │   │   ├── createDocumentController.js
+    │   │   │   ├── deleteDocumentController.js
+    │   │   │   ├── getRoomDetailsController.js
+    │   │   │   ├── joinDocumentController.js
+    │   │   │   ├── requestToJoinRoomController.js
+    │   │   │   └── updateDocumentContentController.js
+    │   │   ├── imageControllers/
+    │   │   │   └── uploadRouter.js
+    │   │   ├── notificationControllers/
+    │   │   │   └── getNotification.js
+    │   │   ├── sessionControllers/
+    │   │   │   ├── createOrJoinDocumentSession.js
+    │   │   │   └── endDocumentSessionController.js
+    │   │   └── usercontrollers/
+    │   │       ├── fetchUserController.js
+    │   │       └── userCreationController.js
+    │   ├── middleware/
+    │   │   ├── AuthMiddleware.js
+    │   │   ├── DocumentMiddleware.js
+    │   │   ├── SessionMiddleware.js
+    │   │   └── SocketMiddleware.js
+    │   ├── models/
+    │   │   ├── collabSession.js
+    │   │   ├── document.js
+    │   │   ├── notification.js
+    │   │   └── user.js
+    │   └── routes/
+    │       ├── documentRoute.js
+    │       ├── sessionRoute.js
+    │       └── userRoute.js
+    └── y-websocket/
+        ├── package.json
+        └── server.js
 
-/GopzCollab
-├── client          # React frontend (Firebase Auth + UI)
-├── server          # Node.js backend (Auth, MongoDB, API routes)
-├── y-websocket     # WebSocket server for Yjs-based real-time sync
-├── README.md
 
 ````
 
